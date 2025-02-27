@@ -57,8 +57,8 @@ export const loadCollaborators = async (): Promise<CollaboratorDict> => {
 };
 
 
-// HEADERS: 'id', 'title', 'title_english', 'related_anime', 'recommendations', 'aired_from_year', 'rating_count', 'average_rating', 'media_type
-const METADATA_FILE_NAME = path.resolve('work/data/author_dataset_filtered.csv');
+// HEADERS: 
+const METADATA_FILE_NAME = path.resolve('work/data/author_dataset_bio_entity.csv');
 
 // id: number;ver
 // FullName: string;
@@ -109,6 +109,8 @@ const EmbeddingFilenameByName: { [K in EmbeddingName]: string } = {
   [EmbeddingName.TEST11]: 'projected_embedding_ggvec_top40_4d_order2.json',
   [EmbeddingName.TKG]: 'tkg_ebd_34k.json',
   [EmbeddingName.TKG_DATA]: 'tkg_ebd_34k_dataset.json',
+  [EmbeddingName.TKG_DATA_SET_BIOENTITY]: 'tkg_ebd_34k_dataset_bioentity.json',
+
 };
 
 const AllValidEmbeddingNames = new Set(Object.keys(EmbeddingFilenameByName) as EmbeddingName[]);
@@ -145,7 +147,7 @@ const loadRawEmbedding = async (embeddingName: EmbeddingName): Promise<RawEmbedd
   const embeddingFilename = EmbeddingFilenameByName[embeddingName];
   // console.log('loading embedding from ', `${DATA_DIR}/${embeddingFilename}`);
   return new Promise((resolve) =>
-    fs.readFile(path.resolve('work/data/tkg_ebd_34k_dataset.json'), (err, data) => {
+    fs.readFile(path.resolve('work/data/tkg_ebd_34k_dataset_bioentity.json'), (err, data) => {
       if (err) {
         throw err;
       }
