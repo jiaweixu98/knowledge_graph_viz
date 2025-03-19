@@ -25,6 +25,7 @@
 
   // console.log('embeddingNeighbors:', embeddingNeighbors);
   let viz: AtlasViz | null = null;
+  let selectedNodeID: number | null = null; // Support Bioentity
   let selectedAnimeID: number | null = null;
   $: selectedDatum = selectedAnimeID === null || !viz ? null : viz.embeddedPointByID.get(selectedAnimeID)!;
 
@@ -49,7 +50,7 @@
     // # important, we directly get collaborators for id Header, may reuse this.
     const collaboratorIds = collaboratorsdict[id] || [];
     // console.log('collaboratorIds:', id, collaboratorIds);
-    const collaboratorObjects = collaboratorIds.map(id => ({ node: { id } }));
+    const collaboratorObjects = collaboratorIds.map((id) => ({ node: { id } }));
     // given the id, return a list of id like below; they are the true collborators or users before.
     // const testArray = [{ node: { id: 100000093 } }, { node: { id: 12120856 } }, { node: { id: 12118846 } }];
     // console.log(Array.isArray(testArray), testArray);
@@ -70,18 +71,18 @@
     // const neighborsPromise: Promise<{ neighbors: number[][] }> = fetch(`/neighbors?embedding=${embeddingName}`).then(
     //   (res) => res.json()
     // );
-//     const neighborsPromise: Promise<number[][]> = fetch(`/neighbors?embedding=tkg_ebd_34k`).then(
-//   async (res) => {
-//     if (!res.ok) {
-//       // Handle the error response, possibly returning an empty array or rethrowing an error
-//       const errorText = await res.text(); // Read the error message
-//       console.error(`Error fetching neighbors: ${errorText}`);
-//       throw new Error(`Failed to fetch neighbors: ${errorText}`);
-//     }
-//     // If the response is ok, proceed with parsing the JSON
-//     return res.json();
-//   }
-// );
+    //     const neighborsPromise: Promise<number[][]> = fetch(`/neighbors?embedding=tkg_ebd_34k`).then(
+    //   async (res) => {
+    //     if (!res.ok) {
+    //       // Handle the error response, possibly returning an empty array or rethrowing an error
+    //       const errorText = await res.text(); // Read the error message
+    //       console.error(`Error fetching neighbors: ${errorText}`);
+    //       throw new Error(`Failed to fetch neighbors: ${errorText}`);
+    //     }
+    //     // If the response is ok, proceed with parsing the JSON
+    //     return res.json();
+    //   }
+    // );
     // console.log('Neighbors fetched ok or not (for vercel):', neighborsPromise);
     import('../pixi').then((mod) => {
       const setSelectedAnimeID = (newSelectedAnimeID: number | null) => {
@@ -92,14 +93,7 @@
       viz?.setCollaboratorsDict(collaboratorsdict);
       const embeddingNeighborsPromise = Promise.resolve(embeddingNeighbors);
       embeddingNeighborsPromise.then((neighbors) => {
-        // console.log('Neighbors fetched:', neighbors);
         viz?.setNeighbors(neighbors);
-        // console.log('Neighbors set in AtlasViz');
-        // if (userProfilePromise) {
-        //   userProfilePromise.then((profile) => {
-        //     viz?.displayMALUser(profile);
-        //   });
-        // }
       });
     });
     // console.log('we have get the neighbors done.')
@@ -120,12 +114,29 @@
 </div>
 {#if viz}
   <Search {embedding} onSubmit={(id) => viz?.flyTo(id)} suggestionsStyle="top: 50px;" />
-  <VizControls {colorBy} {setColorBy} {disableEmbeddingSelection} {disableUsernameSearch} {embedding} onSubmit={(id) => {loadMALProfile(id); viz?.setCollabID(id)}} suggestionsStyle="top: 30px;" />
-
+  <VizControls
+    {colorBy}
+    {setColorBy}
+    {disableEmbeddingSelection}
+    {disableUsernameSearch}
+    {embedding}
+    onSubmit={(id) => {
+      loadMALProfile(id);
+      viz?.setCollabID(id);
+    }}
+    suggestionsStyle="top: 30px;"
+  />
 {/if}
 <div id="atlas-viz-legend" />
 {#if selectedDatum !== null && viz}
-  <AnimeDetails id={selectedDatum.metadata.id} datum={selectedDatum} embedding={embedding} embeddingNeighbors={embeddingNeighbors} {viz} collaboratorsdict={collaboratorsdict}/>
+  <AnimeDetails
+    id={selectedDatum.metadata.id}
+    datum={selectedDatum}
+    {embedding}
+    {embeddingNeighbors}
+    {viz}
+    {collaboratorsdict}
+  />
 {/if}
 
 <style lang="css">

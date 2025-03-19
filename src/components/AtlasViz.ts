@@ -27,14 +27,14 @@ const ESTIMATED_LABEL_MAX_WIDTH = 800;
 export enum ColorBy {
   CareerStartYear = 'BeginYear',
   Number_NIHindexed = 'PaperNum',
-  CustomMapping = 'color_category', // New option
+  CustomMapping = 'color_category', // New option for bioentity
 }
 const CUSTOM_GROUP_LABELS: { [key: string]: string } = {
-  '0': 'Authors Nodes',
-  '1': 'Datasets Nodes',
+  '0': 'Author Nodes',
+  '1': 'Dataset Nodes',
   '2': 'Bridge2AI Talents',
   '3': 'CM4AI Talents',
-  '4': 'CM4AI Datasets (three)',
+  '4': 'CM4AI Datasets',
   '5': 'Author Nodes (CM4AI Collaborators)',
 };
 
@@ -237,45 +237,38 @@ export class AtlasViz {
     // console.log('test CollaboratorsDict',this.CollaboratorsDict[datum.metadata.id])
 
     const neighbors: number[] = this.neighbors[datum.index] ?? [];
-    // console.log('test neighbors:',neighbors)
     if (neighbors.length === 0) {
       console.warn(`No neighbors found for node index=${datum.index} id=${datum.metadata.id}`);
       return null;
     }
     const collaborators = this.CollaboratorsDict[datum.metadata.id];
     const g = new this.PIXI.Graphics();
-    // # important, set the neighbors line style,
     g.lineStyle(2, NEIGHBOR_LINE_COLOR, NEIGHBOR_LINE_OPACITY, 0.5, true);
 
 
-    const getCollaborators = (neighbors, collaborators)  =>  {
-      // Initialize a set to store unique collaborators
-      let neibor_collab = new Set();
-  
-      // Loop through each neighbor and update the set with their collaborators
-      // neighbors.slice(0, 1).forEach(neigh => {
-      //   console.log('test trey neigh',neigh)
-      //     if (this.CollaboratorsDict[neigh]) {
-      //         this.CollaboratorsDict[neigh].forEach(collab => {
-      //             neibor_collab.add(collab);
-      //         });
-      //     }
-      // });
-      neighbors
-      .filter(neigh => neigh === this.collabID) // trey: 6052561 jake: 100000022
-      .forEach(neigh => {
-        if (this.CollaboratorsDict[neigh]) {
-          this.CollaboratorsDict[neigh].forEach(collab => {
-            neibor_collab.add(collab);
-          });
+    const getCollaborators = (neighbors: number[], collaborators: number[] | undefined) => {
+      if (!Array.isArray(neighbors) || !Array.isArray(collaborators)) {
+        console.warn("Invalid input to getCollaborators:", { neighbors, collaborators });
+        return []; // Aviod error msg
+      }
+
+      let neibor_collab = new Set<number>();
+
+      neighbors.forEach(neigh => {
+        if (this.CollaboratorsDict && this.CollaboratorsDict[neigh]) {
+          this.CollaboratorsDict[neigh].forEach(collab => neibor_collab.add(collab));
         }
       });
-      // Convert the set to an array and return the intersection with the collaborators list
-      return collaborators.filter(collab => neibor_collab.has(collab));
-  }
+
+      return Array.from(neibor_collab).filter(collab => collaborators.includes(collab));
+    }
 
     const result = getCollaborators(neighbors, collaborators);
     // console.log('coauthor:',result);
+    if (!Array.isArray(result)) {
+      console.error("getCollaborators() did not return an array:", result);
+      return null;  // 🔥 Don't conduct result.forEach()
+    }
     result.forEach((collaboratorID) => {
       // console.log('test CollaboratorsDict',collaboratorID)
       const collaborator = this.embeddedPointByID.get(collaboratorID)
@@ -420,7 +413,7 @@ export class AtlasViz {
     // });
     // this is used to keep the connections
     // this.decorationsContainer.addChild(connections);
-// why this?
+    // why this?
     this.malProfileEntities = {
       pointGlowBackgrounds,
       // connections,
@@ -484,7 +477,7 @@ export class AtlasViz {
   private static getNodeRadius = (PaperNum: number) => Math.pow(PaperNum, 0.45) / 20;
 
 
-  
+
   private static parseColorString = (colorString: string) => {
     if (colorString.startsWith('#')) {
       return parseInt(colorString.slice(1), 16);
@@ -512,36 +505,37 @@ export class AtlasViz {
   //   if (this.renderedMALNodeIDs.has(animeID)) {
   //     return MAL_NODE_COLOR;
   //   }
-  
+
   //   if (this.colorBy === ColorBy.CustomMapping) {
   //     const key = String(datum.metadata[this.colorBy]); // Ensure it's a string
   //     const colorString = this.colorScaler(key);
   //     const color = AtlasViz.parseColorString(colorString);
   //     return color;
   //   }
-  
+
   //   const colorString = this.colorScaler(datum.metadata[this.colorBy]);
   //   const color = AtlasViz.parseColorString(colorString);
   //   return color;
   // };
   private getNodeColor = (datum: EmbeddedPoint) => {
+    console.log(`ID: ${datum.metadata.id}, Name: ${datum.metadata.FullName}, Category: ${datum.metadata.color_category}`);  // <- 這裡
     const animeID = datum.metadata.id;
     if (this.renderedMALNodeIDs.has(animeID)) {
       return MAL_NODE_COLOR;
     }
-  
+
     let colorString;
     if (this.colorBy === ColorBy.CustomMapping) {
-      const key = String(datum.metadata[this.colorBy]); // Ensure it's a string
+      const key = String(datum.metadata[this.colorBy]);
       colorString = this.colorScaler(key);
     } else {
       colorString = this.colorScaler(datum.metadata[this.colorBy]);
     }
-  
+
     const color = AtlasViz.parseColorString(colorString);
     return color;
   };
-  
+
   /**
    * This is an override of the `uploadVertices` function for the original PIXI.js implementation.  It is optimized to
    * do less work given that
@@ -666,7 +660,7 @@ export class AtlasViz {
     window.addEventListener('resize', this.handleResize);
 
     // Need to do some hacky subclassing to enable big performance improvement
-    class NodesParticleRenderer extends this.PIXI.ParticleRenderer {}
+    class NodesParticleRenderer extends this.PIXI.ParticleRenderer { }
     NodesParticleRenderer.prototype.uploadVertices = this.customUploadVertices;
 
     const nodesParticleRenderer = new NodesParticleRenderer(this.app.renderer as PIXI.Renderer);
@@ -784,7 +778,7 @@ export class AtlasViz {
           const radius = this.cachedNodeRadii[i] * adjustment;
           const centerX = this.embeddingPositions[i * 2];
           const centerY = this.embeddingPositions[i * 2 + 1];
-          const hitTest = Math.abs(worldPoint.x - centerX) < 2*radius && Math.abs(worldPoint.y - centerY) < 2*radius;
+          const hitTest = Math.abs(worldPoint.x - centerX) < 2 * radius && Math.abs(worldPoint.y - centerY) < 2 * radius;
 
           if (hitTest) {
             datum = p;
@@ -903,7 +897,7 @@ export class AtlasViz {
     const nodeGraphics = new this.PIXI.Graphics();
     nodeGraphics.lineStyle(10, 0xffffff, 1);
     nodeGraphics.beginFill(0xffffff);
-    nodeGraphics.drawRect(0, 0, BASE_RADIUS,BASE_RADIUS);
+    nodeGraphics.drawRect(0, 0, BASE_RADIUS, BASE_RADIUS);
     nodeGraphics.endFill();
     const texture = this.app.renderer.generateTexture(nodeGraphics, {
       resolution: 5,
@@ -933,9 +927,9 @@ export class AtlasViz {
   };
 
   private renderNodes() {
-    // Remove and destroy all children
     this.pointsContainer.removeChildren().forEach((c) => c.destroy({ texture: false, children: true }));
     const nodeBackgroundTexture = this.getNodeBackgroundTexture();
+
     this.embedding.forEach((point) => {
       let texture;
       if (point.metadata.IsAuthor === true) {
@@ -943,8 +937,10 @@ export class AtlasViz {
       } else {
         texture = this.getRecTexture();
       }
+
       const nodeSprite = this.buildNodeSprite(texture, point);
       this.pointsContainer.addChild(nodeSprite);
+
       if (point.metadata.color_category === 3) {
         const backgroundSprite = this.buildNodeBackgroundSprite(nodeBackgroundTexture, point, 0xFF4500);
         backgroundSprite.scale.x *= 3;
@@ -967,25 +963,25 @@ export class AtlasViz {
   }
 
 
-//   private renderNodes() {
-//     // Remove and destroy all children
-//     this.pointsContainer.removeChildren().forEach((c) => c.destroy({ texture: false, children: true }));
+  //   private renderNodes() {
+  //     // Remove and destroy all children
+  //     this.pointsContainer.removeChildren().forEach((c) => c.destroy({ texture: false, children: true }));
 
-//     const texture = this.getNodeTexture();
-//     const nodeSprites = []; // Array to hold node sprites
+  //     const texture = this.getNodeTexture();
+  //     const nodeSprites = []; // Array to hold node sprites
 
-//     // Loop in reverse order through the embedding
-//     for (let i = this.embedding.length - 1; i >= 0; i--) {
-//         const point = this.embedding[i];
-//         const nodeSprite = this.buildNodeSprite(texture, point);
-//         nodeSprites.push(nodeSprite); // Store node sprites
-//     }
+  //     // Loop in reverse order through the embedding
+  //     for (let i = this.embedding.length - 1; i >= 0; i--) {
+  //         const point = this.embedding[i];
+  //         const nodeSprite = this.buildNodeSprite(texture, point);
+  //         nodeSprites.push(nodeSprite); // Store node sprites
+  //     }
 
-//     // Add the stored node sprites back in the original order
-//     nodeSprites.reverse().forEach((sprite) => {
-//         this.pointsContainer.addChild(sprite);
-//     });
-// }
+  //     // Add the stored node sprites back in the original order
+  //     nodeSprites.reverse().forEach((sprite) => {
+  //         this.pointsContainer.addChild(sprite);
+  //     });
+  // }
 
 
   private renderSelectedNodeObjects(selectedAnimeID: number | null) {
@@ -1011,7 +1007,7 @@ export class AtlasViz {
     } else {
       texture = this.getRecTexture();
     }
-    
+
     // what is node sprite here? important
     // some errors in the color tint. 
     const nodeSprite = this.buildNodeSprite(texture, point);
@@ -1046,7 +1042,7 @@ export class AtlasViz {
     this.renderNodes();
     this.renderLegend();
   }
-  
+
 
   public flyTo = (id: number) => {
     captureMessage('Fly to node in atlas', { id, FullName: this.embeddedPointByID.get(id)?.metadata.FullName });
@@ -1153,56 +1149,48 @@ export class AtlasViz {
   //       title: this.getColorByTitle(),
   //     });
   //   }
-    
+
   //   const legendContainer = document.getElementById('atlas-viz-legend')!;
   //   legendContainer.innerHTML = '';
   //   legendContainer.appendChild(legend);
   // }
   private renderLegend() {
     const legendContainer = document.getElementById('atlas-viz-legend')!;
-    legendContainer.innerHTML = ''; // Clear existing legend
-  
+    legendContainer.innerHTML = '';
+
     if (this.colorBy === ColorBy.CustomMapping) {
-      // Iterate over the CUSTOM_GROUP_LABELS to create legend items
       Object.keys(CUSTOM_GROUP_LABELS).forEach(key => {
         const label = CUSTOM_GROUP_LABELS[key];
         const colorString = this.colorScaler(key);
         const color = AtlasViz.parseColorString(colorString);
-  
-        // Create a legend item
+
         const legendItem = document.createElement('div');
         legendItem.style.display = 'flex';
         legendItem.style.alignItems = 'center';
         legendItem.style.marginBottom = '4px';
-  
-        // Create the color box
+
         const colorBox = document.createElement('div');
         colorBox.style.width = '16px';
         colorBox.style.height = '16px';
         colorBox.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
         colorBox.style.marginRight = '8px';
-        colorBox.style.border = '1px solid #000'; // Optional: add border for better visibility
-  
-        // Create the label
+        colorBox.style.border = '1px solid #000';
+
         const labelText = document.createElement('span');
         labelText.textContent = label;
-  
-        // Append color box and label to the legend item
+
         legendItem.appendChild(colorBox);
         legendItem.appendChild(labelText);
-  
-        // Append the legend item to the legend container
         legendContainer.appendChild(legendItem);
       });
     } else {
-      // Handle other colorBy options using the existing ColorLegend
       const legend = ColorLegend(this.colorScaler, {
         title: this.getColorByTitle(),
       });
       legendContainer.appendChild(legend);
     }
   }
-  
+
 
   public setNeighbors(neighbors: number[][]) {
     this.neighbors = neighbors;

@@ -4,7 +4,7 @@ import path from 'path';
 import { DATA_DIR } from './conf';
 import type { Embedding } from './routes/embedding';
 import { EmbeddingName } from './types';
-import { AnimeMediaType} from './malAPI';
+import { AnimeMediaType } from './malAPI';
 
 interface RawEmbedding {
   points: { [index: string]: { x: number; y: number } };
@@ -35,7 +35,7 @@ const CachedNeighbors: Map<EmbeddingName, number[][]> = new Map();
 
 
 type CollaboratorDict = Record<number, number[]>;
-const DATA_FILE_NAME = path.resolve('work/data/author_collab_dataset.json');
+const DATA_FILE_NAME = path.resolve('work/data/author_collab_dataset_bioentity.json');
 export const loadCollaborators = async (): Promise<CollaboratorDict> => {
   try {
     const data = await fs.promises.readFile(DATA_FILE_NAME, 'utf-8');
@@ -66,43 +66,44 @@ const METADATA_FILE_NAME = path.resolve('work/data/author_dataset_bio_entity.csv
 // PaperNum: number;
 // IsAuthor: boolean;
 export const loadMetadata = async () => {
-  const metadata = new Map<number, Metadatum>();
+  //const metadata = new Map<number, Metadatum>();
+  const metadataById = new Map<number, Metadatum>(); // metadataById
   await new Promise((resolve) =>
     fs
       .createReadStream(METADATA_FILE_NAME)
-      .pipe(parse({ delimiter: ',' }))
+      .pipe(parse({ delimiter: ',', columns: true })) // load CSV
       .on('data', (row) => {
         // Skip header row
-        const id = +row[0];
-        if (Number.isNaN(id)) {
-          if (metadata.size === 0) {
-            return;
-          } else {
-            console.error('Missing id for row ' + metadata.size);
-          }
-        }
-        metadata.set(id, {
+        // const id = +row[0];
+        // if (Number.isNaN(id)) {
+        //   if (metadata.size === 0) {
+        //     return;
+        //   } else {
+        //     console.error('Missing id for row ' + metadata.size);
+        //   }
+        // }
+        const id = +row['id'];
+        if (Number.isNaN(id)) return;
+        const metadatum: Metadatum = {
           id,
-          FullName: row[1],
-          BeginYear: +row[2],
-          PaperNum: +row[3],
-          IsAuthor: +row[7] === 1,
-          color_category: +row[9],
-          Affiliation: row[10],
-          Data_Source: row[11],
-          Data_Description: row[12],
-          Data_url: row[13],
-          Representative_papers: row[14],
-          
-          // aired_from_year: +row[5],
-          // media_type: 'movie' as AnimeMediaType,
-        });
+          FullName: row['FullName'],
+          BeginYear: +row['BeginYear'],
+          PaperNum: +row['PaperNum'],
+          IsAuthor: row['is_author'] === '1', // 確保是 boolean
+          color_category: +row['color_category'],
+          Affiliation: row['Affiliation'],
+          Data_Source: row['Data_Source'],
+          Data_Description: row['Data_Description'],
+          Data_url: row['Data_url'],
+          Representative_papers: row['pmids_string'],
+        };
+        metadataById.set(id, metadatum); // store in metadatByID
       })
       .on('end', () => {
-        resolve(metadata);
+        resolve(metadataById);
       })
   );
-  return metadata;
+  return { metadataById };
 };
 
 const EmbeddingFilenameByName: { [K in EmbeddingName]: string } = {
@@ -126,11 +127,11 @@ const loadRawEmbedding = async (embeddingName: EmbeddingName): Promise<RawEmbedd
 
   // function listDirectoryContents(dir: string): void {
   //   const items = fs.readdirSync(dir);
-    
+
   //   items.forEach(item => {
   //     const fullPath = path.join(dir, item);
   //     const stats = fs.statSync(fullPath);
-      
+
   //     if (stats.isDirectory()) {
   //       console.log(`Directory: ${fullPath}`);
   //       listDirectoryContents(fullPath);
@@ -170,11 +171,13 @@ const buildDummyMetadatum = (id: number): Metadatum => ({
   FullName: 'Unknown',
   BeginYear: 0,
   PaperNum: 0,
-  // title_english: 'Unknown',
-  // rating_count: 0,
-  // average_rating: 0,
-  // aired_from_year: 0,
-  // media_type: AnimeMediaType.Unknown,
+  IsAuthor: false, // ensure `IsAuthor` exist
+  color_category: 0, // set up default value
+  Affiliation: 'Unknown', // set up default as 'Unknown'
+  Data_Source: 'N/A', // avoid undefined error msg
+  Data_Description: 'No data available',
+  Data_url: '',
+  Representative_papers: '',
 });
 
 export const loadEmbedding = async (embeddingName: EmbeddingName): Promise<Embedding> => {
@@ -183,7 +186,8 @@ export const loadEmbedding = async (embeddingName: EmbeddingName): Promise<Embed
     return cached;
   }
 
-  const metadata = await loadMetadata();
+  //const metadata = await loadMetadata();
+  const { metadataById } = await loadMetadata(); // destruct metadataById
 
   const rawEmbedding = await loadRawEmbedding(embeddingName);
   const entries = Object.entries(rawEmbedding.points);
@@ -192,20 +196,22 @@ export const loadEmbedding = async (embeddingName: EmbeddingName): Promise<Embed
   for (const [index, point] of entries) {
     const i = +index;
     const id = +rawEmbedding.ids[i];
-    let metadatum = metadata.get(id);
+    let metadatum = metadataById.get(id) // ensure recieve msg from metadataById
     if (!metadatum) {
-      console.error(`Missing metadata for id ${id}; fetching from MAL`);
-      try {
-        // const [datum] = await getAnimesByID([id]);
-        // if (datum) {
-        //   throw new Error('Missing metadata for id but it is fetched from MAL');
-        // } else {
-        //   throw new Error('Missing metadata for id and it is not fetched from MAL');
-        // }
-      } catch (e) {
-        console.error(`Failed to fetch metadata for id ${id}; embedding probably needs to be updated`);
-        metadatum = buildDummyMetadatum(id);
-      }
+      console.warn(`Missing metadata for ID ${id}, creating placeholder.`);
+      metadatum = {
+        id,
+        FullName: 'Unknown',
+        BeginYear: 0,
+        PaperNum: 0,
+        IsAuthor: false,
+        color_category: 0,
+        Affiliation: 'Unknown',
+        Data_Source: 'N/A',
+        Data_Description: 'No data available',
+        Data_url: '',
+        Representative_papers: '',
+      }; // Implement Bioentity
     }
 
     embedding.push({

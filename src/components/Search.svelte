@@ -2,8 +2,10 @@
   import Fuse from 'fuse.js';
 
   // export let embedding: { metadata: { id: number; title: string; title_english: string } }[];
-  export let embedding: { metadata: { id: number; FullName: string; Data_Description: string;} }[];
-  export let onSubmit: (id: number, FullName: string) => void;
+  export let embedding: {
+    metadata: { id: number; FullName: string; Data_Description: string; Category: string; Institution: string };
+  }[];
+  export let onSubmit: (id: number, FullName: string, Category?: string, Institution?: string) => void;
   export let style: string | undefined = undefined;
   export let inputStyle: string | undefined = undefined;
   export let suggestionsStyle: string | undefined = undefined;
@@ -13,7 +15,8 @@
   const fuse = new Fuse(embedding, {
     // keys: ['metadata.title', 'metadata.title_english'],
     keys: ['metadata.FullName', 'metadata.Data_Description'],
-
+    includeScore: true, // Display matching score, enhance searching accuracy
+    threshold: 0.3, // Decrease similarity value
   });
 
   let isFocused = false;
@@ -27,11 +30,10 @@
 <div class="root">
   <label for="potential-collaborators">Navigate to a talent or dataset: (input the name)</label>
   <input
-  id="potential-collaborators"
+    id="potential-collaborators"
     type="text"
     value={isFocused ? value : blurredValue || value}
     placeholder={isFocused ? undefined : value || 'Input the name of a talent or a dataset'}
-
     on:input={handleInputChange}
     on:blur={() => {
       isFocused = false;
@@ -52,12 +54,14 @@
             onSubmit(
               suggestion.item.metadata.id,
               suggestion.item.metadata.FullName,
+              suggestion.item.metadata.Category, // passing category
+              suggestion.item.metadata.Institution // passing institution
             );
             value = suggestion.item.metadata.FullName;
           }}
         >
-          {suggestion.item.metadata.FullName}
-
+          <strong>{suggestion.item.metadata.FullName}</strong>
+          <small>({suggestion.item.metadata.Category} - {suggestion.item.metadata.Institution})</small>
         </div>
       {/each}
     </div>
