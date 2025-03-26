@@ -36,6 +36,7 @@ const CUSTOM_GROUP_LABELS: { [key: string]: string } = {
   '3': 'CM4AI Talents',
   '4': 'CM4AI Datasets',
   '5': 'Author Nodes (CM4AI Collaborators)',
+  '6': 'Bioentity Nodes'
 };
 
 export interface EmbeddedPointWithIndex extends EmbeddedPoint {
@@ -151,6 +152,8 @@ export class AtlasViz {
   public collabID: number | null = null;
   private setSelectedAnimeID: (id: number | null) => void;
 
+  private visibleCategories: Set<string> = new Set(Object.keys(CUSTOM_GROUP_LABELS)); //adding checkbox
+
   private PIXI: typeof import('../pixi');
   private app: PIXI.Application;
   private container: Viewport;
@@ -199,6 +202,13 @@ export class AtlasViz {
     this.textWidthCache.set(text, width);
     return width;
   };
+
+  //add range filter
+  private publicationRange: [number, number] = [0, Infinity];
+  public setPublicationRange(min: number, max: number) {
+    this.publicationRange = [min, max];
+    this.renderNodes();
+  }
 
   // private buildNeighborLines(datum: EmbeddedPointWithIndex): PIXI.Graphics | null {
   //   if (!this.neighbors) {
@@ -467,8 +477,8 @@ export class AtlasViz {
       }
       case ColorBy.CustomMapping:
         return d3.scaleOrdinal<string>()
-          .domain(['0', '1', '2', '3', '4', '5']) // Keys as strings
-          .range(['#7F7F7F', '#4CAF50', '#FFD700', '#FF4500', '#088F8F', '#FFB6C1']); // author, dataset, bridge2ai, cm4ai in hex
+          .domain(['0', '1', '2', '3', '4', '5', '6']) // Keys as strings
+          .range(['#7F7F7F', '#4CAF50', '#FFD700', '#FF4500', '#088F8F', '#FFB6C1', '#87CEFA']); // author, dataset, bridge2ai, cm4ai in hex
       default:
         throw new Error(`Unknown colorBy option: ${scaleBy}`);
     }
@@ -927,10 +937,26 @@ export class AtlasViz {
   };
 
   private renderNodes() {
+    // Delete glows
+    this.decorationsContainer.removeChildren().forEach(c => c.destroy({ texture: false, children: true }));
+    // Delete nodes
     this.pointsContainer.removeChildren().forEach((c) => c.destroy({ texture: false, children: true }));
+    // Clear label cache, update Labels 
+    this.cachedGlobalLabelsByGridSize.clear();
+    this.labelsContainer.removeChildren();
+    this.hoverLabelsContainer.removeChildren();
+    this.updateLabels();
+
     const nodeBackgroundTexture = this.getNodeBackgroundTexture();
 
     this.embedding.forEach((point) => {
+      const category = String(point.metadata.color_category);
+      if (!this.visibleCategories.has(category)) return;
+      if (point.metadata.IsAuthor) {
+        const numPubs = point.metadata.PaperNum;
+        if (numPubs < this.publicationRange[0] || numPubs > this.publicationRange[1]) return; // ← filter author nodes
+      }
+
       let texture;
       if (point.metadata.IsAuthor === true) {
         texture = this.getNodeTexture();
@@ -960,6 +986,10 @@ export class AtlasViz {
         this.decorationsContainer.addChild(backgroundSprite);
       }
     });
+    // Clear label cache, update Labels 
+    this.labelsContainer.removeChildren();
+    this.hoverLabelsContainer.removeChildren();
+    this.updateLabels();
   }
 
 
@@ -1130,29 +1160,40 @@ export class AtlasViz {
   };
 
   // private renderLegend() {
-  //   const legend = ColorLegend(this.colorScaler, {
-  //     title: this.getColorByTitle(),
-  //   });
   //   const legendContainer = document.getElementById('atlas-viz-legend')!;
   //   legendContainer.innerHTML = '';
-  //   legendContainer.appendChild(legend);
-  // }
-  // private renderLegend() {
-  //   let legend;
+
   //   if (this.colorBy === ColorBy.CustomMapping) {
-  //     legend = ColorLegend(this.colorScaler, {
-  //       title: 'Legend',
-  //       tickValues: ['group 1', 'group 2', 'group 3'], // Explicitly set tick values
+  //     Object.keys(CUSTOM_GROUP_LABELS).forEach(key => {
+  //       const label = CUSTOM_GROUP_LABELS[key];
+  //       const colorString = this.colorScaler(key);
+  //       const color = AtlasViz.parseColorString(colorString);
+
+  //       const legendItem = document.createElement('div');
+  //       legendItem.style.display = 'flex';
+  //       legendItem.style.alignItems = 'center';
+  //       legendItem.style.marginBottom = '4px';
+
+  //       const colorBox = document.createElement('div');
+  //       colorBox.style.width = '16px';
+  //       colorBox.style.height = '16px';
+  //       colorBox.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
+  //       colorBox.style.marginRight = '8px';
+  //       colorBox.style.border = '1px solid #000';
+
+  //       const labelText = document.createElement('span');
+  //       labelText.textContent = label;
+
+  //       legendItem.appendChild(colorBox);
+  //       legendItem.appendChild(labelText);
+  //       legendContainer.appendChild(legendItem);
   //     });
   //   } else {
-  //     legend = ColorLegend(this.colorScaler, {
+  //     const legend = ColorLegend(this.colorScaler, {
   //       title: this.getColorByTitle(),
   //     });
+  //     legendContainer.appendChild(legend);
   //   }
-
-  //   const legendContainer = document.getElementById('atlas-viz-legend')!;
-  //   legendContainer.innerHTML = '';
-  //   legendContainer.appendChild(legend);
   // }
   private renderLegend() {
     const legendContainer = document.getElementById('atlas-viz-legend')!;
@@ -1164,10 +1205,34 @@ export class AtlasViz {
         const colorString = this.colorScaler(key);
         const color = AtlasViz.parseColorString(colorString);
 
-        const legendItem = document.createElement('div');
+        const legendItem = document.createElement('label');
         legendItem.style.display = 'flex';
         legendItem.style.alignItems = 'center';
         legendItem.style.marginBottom = '4px';
+        legendItem.style.cursor = 'pointer';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = this.visibleCategories.has(key);
+        checkbox.style.marginRight = '6px';
+
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            this.visibleCategories.add(key);
+          } else {
+            this.visibleCategories.delete(key);
+
+            // if the selected belongs to the canceled category, then clean the selected status
+            if (
+              this.selectedNode &&
+              this.embeddedPointByID.get(this.selectedNode.id)?.metadata.color_category === parseInt(key)
+            ) {
+              this.setSelectedAnimeID(null); // ⬅ clean the selected nodes
+              this.showToast(`⚠️ ${label}hidden – deselected the currently selected node.`); // display toast
+            }
+          }
+          this.renderNodes(); // rerender new nodes
+        });
 
         const colorBox = document.createElement('div');
         colorBox.style.width = '16px';
@@ -1179,6 +1244,7 @@ export class AtlasViz {
         const labelText = document.createElement('span');
         labelText.textContent = label;
 
+        legendItem.appendChild(checkbox);
         legendItem.appendChild(colorBox);
         legendItem.appendChild(labelText);
         legendContainer.appendChild(legendItem);
@@ -1190,7 +1256,22 @@ export class AtlasViz {
       legendContainer.appendChild(legend);
     }
   }
+  private showToast(message: string) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
 
+    container.textContent = message;
+    container.style.display = 'block';
+    container.style.opacity = '1';
+
+    setTimeout(() => {
+      container!.style.opacity = '0';
+    }, 2000); // fade out time
+
+    setTimeout(() => {
+      container!.style.display = 'none';
+    }, 2500); // hidden time
+  }
 
   public setNeighbors(neighbors: number[][]) {
     this.neighbors = neighbors;
@@ -1395,6 +1476,9 @@ export class AtlasViz {
         let score = 0;
         for (const nodeIx of visibleNodeIndices) {
           const datum = this.embedding[nodeIx];
+          // ✅ adding the conditions, skip all the unselected categories
+          if (!this.visibleCategories.has(String(datum.metadata.color_category))) continue;
+
           // Measuring text is expensive, so use an estimate max width.  In practice, this doesn't have
           // that bad of an impact on the generated label positions.
           // const textWidth = this.measureText(datum.metadata.title);
@@ -1477,7 +1561,11 @@ export class AtlasViz {
     const visibleNodeIndices = new Set(this.computeVisibleNodeIndices(this.container.getVisibleBounds(), false));
     const labelScale = this.getBaseLabelScale(gridSquareSize);
     const labelsToRender = globalLabelPositionsForZoomLevel
-      .filter(({ datum }) => visibleNodeIndices.has(datum.index))
+      .filter(({ datum }) =>
+        visibleNodeIndices.has(datum.index) &&
+        this.visibleCategories.has(String(datum.metadata.color_category)) &&
+        (!datum.metadata.IsAuthor || (datum.metadata.PaperNum >= this.publicationRange[0] && datum.metadata.PaperNum <= this.publicationRange[1])) // ← 加上 label 篩選
+      ) // filter legend & range
       .map(({ datum }) => this.buildLabel(datum, labelScale));
 
     for (const label of labelsToRender) {

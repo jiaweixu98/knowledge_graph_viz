@@ -12,6 +12,8 @@
   import VizControls from './VizControls.svelte';
   import Header from './recommendation/Header.svelte';
 
+  let publicationRange: [number, number] = [0, 0];
+  let selectedPublicationRange: [number, number] = [0, 0];
   export let embeddingName: EmbeddingName;
   export let embedding: Embedding;
   export let embeddingNeighbors;
@@ -41,6 +43,10 @@
     viz?.setColorBy(colorBy);
   };
 
+  // add range filter
+  let minPub = 0;
+  let showTooltip = false;
+
   const loadMALProfile = (id: number) => {
     if (!viz) {
       console.error('Tried to load MAL profile before Atlas viz was loaded.');
@@ -65,25 +71,6 @@
   };
 
   onMount(() => {
-    // const usernameToLoad = username ?? new URLSearchParams(window.location.search).get('username');
-    // const userProfilePromise =
-    //   usernameToLoad && fetch(`/${profileSource}-profile?username=${usernameToLoad}`).then((res) => res.json());
-    // const neighborsPromise: Promise<{ neighbors: number[][] }> = fetch(`/neighbors?embedding=${embeddingName}`).then(
-    //   (res) => res.json()
-    // );
-    //     const neighborsPromise: Promise<number[][]> = fetch(`/neighbors?embedding=tkg_ebd_34k`).then(
-    //   async (res) => {
-    //     if (!res.ok) {
-    //       // Handle the error response, possibly returning an empty array or rethrowing an error
-    //       const errorText = await res.text(); // Read the error message
-    //       console.error(`Error fetching neighbors: ${errorText}`);
-    //       throw new Error(`Failed to fetch neighbors: ${errorText}`);
-    //     }
-    //     // If the response is ok, proceed with parsing the JSON
-    //     return res.json();
-    //   }
-    // );
-    // console.log('Neighbors fetched ok or not (for vercel):', neighborsPromise);
     import('../pixi').then((mod) => {
       const setSelectedAnimeID = (newSelectedAnimeID: number | null) => {
         selectedAnimeID = newSelectedAnimeID;
@@ -95,6 +82,17 @@
       embeddingNeighborsPromise.then((neighbors) => {
         viz?.setNeighbors(neighbors);
       });
+      // 💡 Add：Based on all authors to calculate and initialize paperNum
+      const paperNums = embedding.filter((d) => d.metadata.IsAuthor).map((d) => d.metadata.PaperNum);
+
+      const minPub = Math.min(...paperNums);
+      const maxPub = Math.max(...paperNums);
+
+      publicationRange = [minPub, maxPub];
+      selectedPublicationRange = [minPub, maxPub];
+
+      // 💡 Add：pass initialize data to AtlasViz
+      viz?.setPublicationRange(minPub, maxPub);
     });
     // console.log('we have get the neighbors done.')
 
@@ -103,6 +101,12 @@
       viz = null;
     };
   });
+
+  function updatePublicationRange() {
+    if (viz) {
+      viz.setPublicationRange(minPub, Infinity); // 或 minPub, Infinity if 你只想篩「下限」
+    }
+  }
 </script>
 
 <svelte:head>
@@ -128,6 +132,50 @@
   />
 {/if}
 <div id="atlas-viz-legend" />
+
+<!-- new：Publication range filter -->
+<div class="pub-range-filter">
+  <label for="pubRange" style="margin-bottom: 22px; display: inline-block;">Filter by # of Publications:</label>
+  <input
+    id="pubRange"
+    type="range"
+    min={publicationRange[0]}
+    max={publicationRange[1]}
+    step="1"
+    bind:value={minPub}
+    on:input={updatePublicationRange}
+    on:mouseenter={() => (showTooltip = true)}
+    on:mouseleave={() => (showTooltip = false)}
+  />
+  {#if showTooltip}
+    <div
+      class="slider-tooltip"
+      style="left: {((minPub - publicationRange[0]) / (publicationRange[1] - publicationRange[0])) * 100}%"
+    >
+      {minPub}
+    </div>
+  {/if}
+  <div class="range-caption">
+    Showing authors with ≥ <strong>{minPub}</strong> papers
+  </div>
+</div>
+
+<div
+  id="toast-container"
+  style="
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  display: none;
+  z-index: 9999;
+  transition: opacity 0.3s ease;
+"
+></div>
 {#if selectedDatum !== null && viz}
   <AnimeDetails
     id={selectedDatum.metadata.id}
@@ -145,6 +193,45 @@
     flex-direction: column;
     height: 100vh;
     width: 100vw;
+  }
+
+  .pub-range-filter {
+    position: absolute;
+    top: 180px; /* position */
+    right: 12px;
+    width: 280px; /* legend width */
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    z-index: 1;
+  }
+
+  .pub-range-filter input[type='range'] {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .range-caption {
+    text-align: right;
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .slider-tooltip {
+    position: absolute;
+    top: 30px;
+    transform: translateX(-50%);
+    background: #444;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
   }
 
   #atlas-viz-legend {
