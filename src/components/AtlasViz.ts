@@ -210,98 +210,102 @@ export class AtlasViz {
     this.renderNodes();
   }
 
-  // private buildNeighborLines(datum: EmbeddedPointWithIndex): PIXI.Graphics | null {
-  //   if (!this.neighbors) {
-  //     console.error("this.neighbors is not defined", this.neighbors);
-  //     return null;
-  //   }
-
-  //   const neighbors: number[] = this.neighbors[datum.index] ?? [];
-  //   if (neighbors.length === 0) {
-  //     console.warn(`No neighbors found for node index=${datum.index} id=${datum.metadata.id}`);
-  //     return null;
-  //   }
-
-  //   const g = new this.PIXI.Graphics();
-  //   // # important, set the neighbors line style,
-  //   g.lineStyle(2, NEIGHBOR_LINE_COLOR, NEIGHBOR_LINE_OPACITY, 0.5, true);
-
-  //   neighbors.forEach((neighborID) => {
-  //     const neighbor = this.embeddedPointByID.get(neighborID);
-  //     if (!neighbor) {
-  //       console.warn(`Could not find neighbor id=${neighborID} for node index=${datum.index}`);
-  //       return;
-  //     }
-  //     g.moveTo(datum.vector.x, datum.vector.y);
-  //     g.lineTo(neighbor.vector.x, neighbor.vector.y);
-  //   });
-  //   return g;
-  // }
-
   private buildNeighborLines(datum: EmbeddedPointWithIndex): PIXI.Graphics | null {
-    // console.log('test author_id',datum)
+    return null;
     if (!this.neighbors) {
       console.error("this.neighbors is not defined", this.neighbors);
       return null;
     }
-    // console.log('test CollaboratorsDict',this.CollaboratorsDict[datum.metadata.id])
 
     const neighbors: number[] = this.neighbors[datum.index] ?? [];
     if (neighbors.length === 0) {
       console.warn(`No neighbors found for node index=${datum.index} id=${datum.metadata.id}`);
       return null;
     }
-    const collaborators = this.CollaboratorsDict[datum.metadata.id];
+
     const g = new this.PIXI.Graphics();
+    // # important, set the neighbors line style,
     g.lineStyle(2, NEIGHBOR_LINE_COLOR, NEIGHBOR_LINE_OPACITY, 0.5, true);
 
-
-    const getCollaborators = (neighbors: number[], collaborators: number[] | undefined) => {
-      if (!Array.isArray(neighbors) || !Array.isArray(collaborators)) {
-        console.warn("Invalid input to getCollaborators:", { neighbors, collaborators });
-        return []; // Aviod error msg
-      }
-
-      let neibor_collab = new Set<number>();
-
-      neighbors.forEach(neigh => {
-        if (this.CollaboratorsDict && this.CollaboratorsDict[neigh]) {
-          this.CollaboratorsDict[neigh].forEach(collab => neibor_collab.add(collab));
-        }
-      });
-
-      return Array.from(neibor_collab).filter(collab => collaborators.includes(collab));
-    }
-
-    const result = getCollaborators(neighbors, collaborators);
-    // console.log('coauthor:',result);
-    if (!Array.isArray(result)) {
-      console.error("getCollaborators() did not return an array:", result);
-      return null;  // 🔥 Don't conduct result.forEach()
-    }
-    result.forEach((collaboratorID) => {
-      // console.log('test CollaboratorsDict',collaboratorID)
-      const collaborator = this.embeddedPointByID.get(collaboratorID)
-      if (!collaborator) {
-        console.warn(`Could not find neighbor id=${collaboratorID} for node index=${datum.index}`);
+    neighbors.forEach((neighborID) => {
+      const neighbor = this.embeddedPointByID.get(neighborID);
+      if (!neighbor) {
+        console.warn(`Could not find neighbor id=${neighborID} for node index=${datum.index}`);
         return;
       }
-      // console.log('test ', datum.metadata, collaborator)
       g.moveTo(datum.vector.x, datum.vector.y);
-      g.lineTo(collaborator.vector.x, collaborator.vector.y);
+      g.lineTo(neighbor.vector.x, neighbor.vector.y);
     });
-
-    // neighbors.forEach((neighborID) => {
-    //   const neighbor = this.embeddedPointByID.get(neighborID);
-    //   if (!neighbor) {
-    //     console.warn(`Could not find neighbor id=${neighborID} for node index=${datum.index}`);
-    //     return;
-    //   }
-    //   g.moveTo(datum.vector.x, datum.vector.y);
-    //   g.lineTo(neighbor.vector.x, neighbor.vector.y);
-    // });
     return g;
   }
+
+
+
+
+  // private buildNeighborLines(datum: EmbeddedPointWithIndex): PIXI.Graphics | null {
+  //   // console.log('test author_id',datum)
+  //   if (!this.neighbors) {
+  //     console.error("this.neighbors is not defined", this.neighbors);
+  //     return null;
+  //   }
+  //   // console.log('test CollaboratorsDict',this.CollaboratorsDict[datum.metadata.id])
+
+  //   const neighbors: number[] = this.neighbors[datum.index] ?? [];
+  //   if (neighbors.length === 0) {
+  //     console.warn(`No neighbors found for node index=${datum.index} id=${datum.metadata.id}`);
+  //     return null;
+  //   }
+  //   const collaborators = this.CollaboratorsDict[datum.metadata.id];
+  //   const g = new this.PIXI.Graphics();
+  //   g.lineStyle(2, NEIGHBOR_LINE_COLOR, NEIGHBOR_LINE_OPACITY, 0.5, true);
+
+
+  //   const getCollaborators = (neighbors: number[], collaborators: number[] | undefined) => {
+  //     if (!Array.isArray(neighbors) || !Array.isArray(collaborators)) {
+  //       console.warn("Invalid input to getCollaborators:", { neighbors, collaborators });
+  //       return []; // Aviod error msg
+  //     }
+
+  //     let neibor_collab = new Set<number>();
+
+  //     neighbors.forEach(neigh => {
+  //       if (this.CollaboratorsDict && this.CollaboratorsDict[neigh]) {
+  //         this.CollaboratorsDict[neigh].forEach(collab => neibor_collab.add(collab));
+  //       }
+  //     });
+
+  //     return Array.from(neibor_collab).filter(collab => collaborators.includes(collab));
+  //   }
+
+  //   const result = getCollaborators(neighbors, collaborators);
+  //   // console.log('coauthor:',result);
+  //   if (!Array.isArray(result)) {
+  //     console.error("getCollaborators() did not return an array:", result);
+  //     return null;  // 🔥 Don't conduct result.forEach()
+  //   }
+  //   result.forEach((collaboratorID) => {
+  //     // console.log('test CollaboratorsDict',collaboratorID)
+  //     const collaborator = this.embeddedPointByID.get(collaboratorID)
+  //     if (!collaborator) {
+  //       console.warn(`Could not find neighbor id=${collaboratorID} for node index=${datum.index}`);
+  //       return;
+  //     }
+  //     // console.log('test ', datum.metadata, collaborator)
+  //     g.moveTo(datum.vector.x, datum.vector.y);
+  //     g.lineTo(collaborator.vector.x, collaborator.vector.y);
+  //   });
+
+  //   // neighbors.forEach((neighborID) => {
+  //   //   const neighbor = this.embeddedPointByID.get(neighborID);
+  //   //   if (!neighbor) {
+  //   //     console.warn(`Could not find neighbor id=${neighborID} for node index=${datum.index}`);
+  //   //     return;
+  //   //   }
+  //   //   g.moveTo(datum.vector.x, datum.vector.y);
+  //   //   g.lineTo(neighbor.vector.x, neighbor.vector.y);
+  //   // });
+  //   return g;
+  // }
 
   private getNodeBackgroundTexture = () => {
     if (this.cachedMALBackgroundTexture) {
@@ -528,7 +532,7 @@ export class AtlasViz {
   //   return color;
   // };
   private getNodeColor = (datum: EmbeddedPoint) => {
-    console.log(`ID: ${datum.metadata.id}, Name: ${datum.metadata.FullName}, Category: ${datum.metadata.color_category}`);  // <- 這裡
+    // console.log(`ID: ${datum.metadata.id}, Name: ${datum.metadata.FullName}, Category: ${datum.metadata.color_category}`);  // <- 這裡
     const animeID = datum.metadata.id;
     if (this.renderedMALNodeIDs.has(animeID)) {
       return MAL_NODE_COLOR;
@@ -665,8 +669,8 @@ export class AtlasViz {
     });
     this.container.drag({ mouseButtons: 'middle-left' }).pinch().wheel();
     // TODO: The initial transform probably needs to be relative to screen size
-    this.container.setTransform(1000.5, 400.5, 5, 5);
-    this.container.moveCenter(281, 167);
+    this.container.setTransform(1000.5, 400.5, 15, 15);
+    this.container.moveCenter(-130, 210); 
     window.addEventListener('resize', this.handleResize);
 
     // Need to do some hacky subclassing to enable big performance improvement
@@ -969,8 +973,8 @@ export class AtlasViz {
 
       if (point.metadata.color_category === 3) {
         const backgroundSprite = this.buildNodeBackgroundSprite(nodeBackgroundTexture, point, 0xFF4500);
-        backgroundSprite.scale.x *= 3;
-        backgroundSprite.scale.y *= 3;
+        backgroundSprite.scale.x *= point.metadata.PaperNum/70;
+        backgroundSprite.scale.y *= point.metadata.PaperNum/70;
         this.decorationsContainer.addChild(backgroundSprite);
       }
       if (point.metadata.color_category === 2) {
@@ -1057,7 +1061,7 @@ export class AtlasViz {
       this.decorationsContainer.addChild(connections);
     }
 
-    return { node: nodeSprite, background: backgroundSprite, connections };
+    return { node: nodeSprite, background: backgroundSprite, connections};
   }
 
   // public setColorBy(colorBy: ColorBy) {

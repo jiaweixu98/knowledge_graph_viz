@@ -1,4 +1,4 @@
-import vercel from '@sveltejs/adapter-vercel'
+import adapter from '@sveltejs/adapter-vercel';
 import preprocess from 'svelte-preprocess';
 import { resolve } from 'path';
 import { optimizeImports, optimizeCss, icons, elements } from 'carbon-preprocess-svelte';
@@ -13,7 +13,9 @@ const config = {
 
   kit: {
     inlineStyleThreshold: 2048,
-    adapter: vercel(),
+    adapter: adapter({
+      runtime: 'nodejs20.x',
+    }),
     prerender: {
       concurrency: 6,
     },

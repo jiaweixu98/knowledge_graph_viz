@@ -208,8 +208,17 @@ ${papersList}
         <p><strong>Institution:</strong> {datum.metadata.Affiliation}</p>
         <p><strong>Career Begin Year:</strong> {datum.metadata.BeginYear}</p>
         <p><strong>Number of Papers:</strong> {datum.metadata.PaperNum}</p>
-        <br /><br />
-
+        <button
+          class="rec_button"
+          on:click={() =>
+            window.open(`https://cm4aiteaming.streamlit.app/?aid=${datum.metadata.id}`)}
+        >
+        MATRIX Interactive Recommendation.
+        </button> <br />
+        <span style="font-size: 14px;">
+          MATRIX: <b>M</b>ulti-<b>A</b>gent <b>T</b>eaming <b>R</b>ecommendation through <b>I</b>nteractive <b>E</b>xpertise Gap <b>I</b>dentification.
+        </span>       
+         <br />
         <button
           class="rec_button"
           on:click={() =>

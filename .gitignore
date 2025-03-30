@@ -5,5 +5,4 @@ build
 .vscode
 raw_data
 work/data/
-*.json
 .DS_Store
