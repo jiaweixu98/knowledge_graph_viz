@@ -5,6 +5,7 @@ import { DATA_DIR } from './conf';
 import type { Embedding } from './routes/embedding';
 import { EmbeddingName } from './types';
 import { AnimeMediaType } from './malAPI';
+import { inflate } from 'pako'; // 新增這行
 
 interface RawEmbedding {
   points: { [index: string]: { x: number; y: number } };
@@ -35,11 +36,14 @@ const CachedNeighbors: Map<EmbeddingName, number[][]> = new Map();
 
 
 type CollaboratorDict = Record<number, number[]>;
-const DATA_FILE_NAME = path.resolve('work/data/author_collab_dataset_bioentity.json');
+const DATA_GZ_URL = '/work/data/author_collab_dataset_bioentity.json.gz';
+
 export const loadCollaborators = async (): Promise<CollaboratorDict> => {
   try {
-    const data = await fs.promises.readFile(DATA_FILE_NAME, 'utf-8');
-    const parsedData = JSON.parse(data);
+    const res = await fetch(DATA_GZ_URL);
+    const buffer = await res.arrayBuffer();
+    const decompressed = inflate(new Uint8Array(buffer), { to: 'string' });
+    const parsedData = JSON.parse(decompressed);
 
     // Convert keys from string to number
     const collaboratorsDict: CollaboratorDict = {};
