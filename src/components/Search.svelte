@@ -25,6 +25,9 @@
   const handleInputChange = (evt: any) => {
     value = evt.target.value;
   };
+
+  // Add safeText utility
+  const safeText = (text: string | undefined | null) => (text ?? '').replace(/[^\x20-\x7E\u4e00-\u9fa5]/g, '').trim();
 </script>
 
 <div class="root">
@@ -61,7 +64,17 @@
           }}
         >
           <strong>{suggestion.item.metadata.FullName}</strong>
-          <small>({suggestion.item.metadata.Category} - {suggestion.item.metadata.Institution})</small>
+          {#if suggestion.item.metadata.Category || suggestion.item.metadata.Institution}
+            <small
+              >(
+              {safeText(suggestion.item.metadata.Category)}
+              {#if suggestion.item.metadata.Category && suggestion.item.metadata.Institution}
+                -
+              {/if}
+              {safeText(suggestion.item.metadata.Institution)}
+              )</small
+            >
+          {/if}
         </div>
       {/each}
     </div>

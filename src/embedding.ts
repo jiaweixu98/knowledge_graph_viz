@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import path from 'path';
+import * as zlib from 'zlib';
 import { DATA_DIR } from './conf';
 import type { Embedding } from './routes/embedding';
 import { EmbeddingName } from './types';
 import { AnimeMediaType } from './malAPI';
-import { inflate } from 'pako'; // 新增這行
 
 interface RawEmbedding {
   points: { [index: string]: { x: number; y: number } };
@@ -40,12 +40,13 @@ const DATA_GZ_URL = '/work/data/author_collab_dataset_bioentity.json.gz';
 
 export const loadCollaborators = async (): Promise<CollaboratorDict> => {
   try {
-    const res = await fetch(DATA_GZ_URL);
-    const buffer = await res.arrayBuffer();
-    const decompressed = inflate(new Uint8Array(buffer), { to: 'string' });
+    const filePath = path.resolve('work/data/author_collab_dataset_bioentity.json.gz');
+    const compressedBuffer = fs.readFileSync(filePath); // recieve Buffer from node.js
+    const decompressedBuffer = zlib.gunzipSync(compressedBuffer); // Buffer
+    const decompressed = decompressedBuffer.toString(); // to string
+
     const parsedData = JSON.parse(decompressed);
 
-    // Convert keys from string to number
     const collaboratorsDict: CollaboratorDict = {};
     for (const key in parsedData) {
       if (Object.hasOwnProperty.call(parsedData, key)) {

@@ -151,6 +151,9 @@ export class AtlasViz {
   private CollaboratorsDict: Map<number, number[]> | null = null;
   public collabID: number | null = null;
   private setSelectedAnimeID: (id: number | null) => void;
+  //avoid pre-rendering
+  private filtersInitialized = false;
+
 
   private visibleCategories: Set<string> = new Set(Object.keys(CUSTOM_GROUP_LABELS)); //adding checkbox
 
@@ -208,6 +211,19 @@ export class AtlasViz {
   public setPublicationRange(min: number, max: number) {
     this.publicationRange = [min, max];
     this.renderNodes();
+  }
+  //add begin year filter
+  private beginYearRange: [number, number] = [1900, 2024];
+  public setRangeFilter(type: 'PaperNum' | 'BeginYear', min: number, max: number) {
+    if (type === 'PaperNum') {
+      this.setPublicationRange(min, max); // 呼叫原本的論文數量篩選
+    } else if (type === 'BeginYear') {
+      this.beginYearRange = [min, max];   // 設定新變數
+      this.renderNodes();                 // 重新渲染節點
+    }
+    if (this.filtersInitialized) { // avoid pre-rendering
+      this.renderNodes();
+    }
   }
 
   private buildNeighborLines(datum: EmbeddedPointWithIndex): PIXI.Graphics | null {
@@ -670,7 +686,7 @@ export class AtlasViz {
     this.container.drag({ mouseButtons: 'middle-left' }).pinch().wheel();
     // TODO: The initial transform probably needs to be relative to screen size
     this.container.setTransform(1000.5, 400.5, 15, 15);
-    this.container.moveCenter(-130, 210); 
+    this.container.moveCenter(-130, 210);
     window.addEventListener('resize', this.handleResize);
 
     // Need to do some hacky subclassing to enable big performance improvement
@@ -958,7 +974,13 @@ export class AtlasViz {
       if (!this.visibleCategories.has(category)) return;
       if (point.metadata.IsAuthor) {
         const numPubs = point.metadata.PaperNum;
-        if (numPubs < this.publicationRange[0] || numPubs > this.publicationRange[1]) return; // ← filter author nodes
+        const beginYear = point.metadata.BeginYear;
+        if (
+          numPubs < this.publicationRange[0] || numPubs > this.publicationRange[1] ||
+          beginYear < this.beginYearRange[0] || beginYear > this.beginYearRange[1]
+        ) {
+          return;
+        }
       }
 
       let texture;
@@ -973,8 +995,8 @@ export class AtlasViz {
 
       if (point.metadata.color_category === 3) {
         const backgroundSprite = this.buildNodeBackgroundSprite(nodeBackgroundTexture, point, 0xFF4500);
-        backgroundSprite.scale.x *= point.metadata.PaperNum/70;
-        backgroundSprite.scale.y *= point.metadata.PaperNum/70;
+        backgroundSprite.scale.x *= point.metadata.PaperNum / 70;
+        backgroundSprite.scale.y *= point.metadata.PaperNum / 70;
         this.decorationsContainer.addChild(backgroundSprite);
       }
       if (point.metadata.color_category === 2) {
@@ -1061,7 +1083,7 @@ export class AtlasViz {
       this.decorationsContainer.addChild(connections);
     }
 
-    return { node: nodeSprite, background: backgroundSprite, connections};
+    return { node: nodeSprite, background: backgroundSprite, connections };
   }
 
   // public setColorBy(colorBy: ColorBy) {
@@ -1352,10 +1374,10 @@ export class AtlasViz {
         height: transformedHeight,
       };
       // Grow bounds slightly to enforce a bit of space between the labels
-      bounds.x -= bounds.width * 0.25;
-      bounds.width *= 1.5;
-      bounds.y -= bounds.height * 0.5;
-      bounds.height *= 2;
+      bounds.x -= bounds.width * 0.1; //0.25
+      bounds.width *= 1.2; //1.5
+      bounds.y -= bounds.height * 0.1; //0.5
+      bounds.height *= 1.2; //2
 
       return bounds;
     };
@@ -1480,7 +1502,11 @@ export class AtlasViz {
         let score = 0;
         for (const nodeIx of visibleNodeIndices) {
           const datum = this.embedding[nodeIx];
-          // ✅ adding the conditions, skip all the unselected categories
+          // if (String(datum.metadata.color_category) === '3') {
+          //   console.log('[✅ CM4AI index]', datum.metadata.FullName);
+          // }
+
+          // adding the conditions, skip all the unselected categories
           if (!this.visibleCategories.has(String(datum.metadata.color_category))) continue;
 
           // Measuring text is expensive, so use an estimate max width.  In practice, this doesn't have
@@ -1505,12 +1531,63 @@ export class AtlasViz {
       }
     }
 
+    // 強制插入可見 + 勾選的 CM4AI labels
+    for (const datum of this.embedding) {
+      const category = String(datum.metadata.color_category);
+      const isCM4AI = category === '3';
+      const isSelected = this.visibleCategories.has(category);
+      const visibleBounds = this.container.getVisibleBounds();
+      const isVisible = visibleBounds.contains(datum.vector.x, datum.vector.y);
+
+      if (isCM4AI && isSelected && isVisible) {
+        const bounds = computeLabelTransformedBounds(
+          ESTIMATED_LABEL_MAX_WIDTH,
+          datum.vector.x,
+          datum.vector.y
+        );
+
+        const overlappedIndices = new Set<number>();
+
+        fastQuadtreeVisit(labelsToRenderQuadtree, (node, x1, y1, x2, y2) => {
+          if (Array.isArray(node)) return false;
+
+          do {
+            const [_, __, i] = node.data;
+            const otherLabel = labelsToRender[i];
+            const otherDatum = otherLabel.datum;
+            const isOtherCM4AI = String(otherDatum.metadata.color_category) === '3';
+
+            if (fastRectIntersects(bounds, otherLabel.transformedBounds)) {
+              if (!isOtherCM4AI) {
+                overlappedIndices.add(i);
+              } else {
+                return true;
+              }
+            }
+          } while ((node = node.next));
+        });
+
+        // 移除和這個 CM4AI label 發生衝突的其他 label
+        const newLabels = labelsToRender.filter((_, i) => !overlappedIndices.has(i));
+        labelsToRender.length = 0;
+        labelsToRender.push(...newLabels);
+
+        // 加上 CM4AI label
+        labelsToRender.push({ datum, transformedBounds: bounds });
+        labelsToRenderQuadtree.addAll(
+          getRectangleVertices(bounds).map(([x, y]) => [x, y, labelsToRender.length - 1] as const)
+        );
+      }
+    }
+
+
     this.cachedGlobalLabelsByGridSize.set(gridSquareSize, labelsToRender);
     return labelsToRender;
   };
 
   private buildLabel = (datum: EmbeddedPointWithIndex, labelScale: number) => {
     const text = datum.metadata.FullName ?? datum.metadata.FullName;
+    const isCM4AI = String(datum.metadata.color_category) === '3';
     const cachedTextSprite = this.cachedLabels.get(text);
     if (cachedTextSprite) {
       this.setLabelScale(cachedTextSprite, datum, 1, labelScale);
@@ -1523,8 +1600,8 @@ export class AtlasViz {
       text,
       {
         fontFamily: 'IBM Plex Sans',
-        fontSize: BASE_LABEL_FONT_SIZE,
-        fill: 0xcccccc,
+        fontSize: isCM4AI ? BASE_LABEL_FONT_SIZE * 1.5 : BASE_LABEL_FONT_SIZE,
+        fill: 0xffffff,
         align: 'center',
       },
       textWidth
@@ -1536,6 +1613,9 @@ export class AtlasViz {
     label.textWidth = textWidth;
     this.setLabelScale(label, datum, 1, labelScale);
     this.cachedLabels.set(text, label);
+    label.beginFill(0xff0000, 0.2);
+    label.drawRect(-textWidth / 2, -LABEL_HEIGHT / 2, textWidth, LABEL_HEIGHT);
+    label.endFill();
 
     return label;
   };
@@ -1565,10 +1645,25 @@ export class AtlasViz {
     const visibleNodeIndices = new Set(this.computeVisibleNodeIndices(this.container.getVisibleBounds(), false));
     const labelScale = this.getBaseLabelScale(gridSquareSize);
     const labelsToRender = globalLabelPositionsForZoomLevel
-      .filter(({ datum }) =>
-        visibleNodeIndices.has(datum.index) &&
-        this.visibleCategories.has(String(datum.metadata.color_category)) &&
-        (!datum.metadata.IsAuthor || (datum.metadata.PaperNum >= this.publicationRange[0] && datum.metadata.PaperNum <= this.publicationRange[1])) // ← 加上 label 篩選
+      .filter(({ datum }) => {
+        //console.log('label candidate', datum.metadata.FullName, datum.metadata.color_category);
+
+        const category = String(datum.metadata.color_category);
+        const isCM4AI = category === '3';
+
+        const isVisible = visibleNodeIndices.has(datum.index);
+        const isCategorySelected = this.visibleCategories.has(category);
+        const isAuthorValid =
+          !datum.metadata.IsAuthor ||
+          (datum.metadata.PaperNum >= this.publicationRange[0] && datum.metadata.PaperNum <= this.publicationRange[1]);
+
+        // ✅ Display condition：
+        // - CM4AI && selected => always display
+        // - Other categories => display when needed
+        return isVisible && isAuthorValid && (
+          (isCM4AI && isCategorySelected) || (!isCM4AI && isCategorySelected)
+        );
+      }
       ) // filter legend & range
       .map(({ datum }) => this.buildLabel(datum, labelScale));
 
@@ -1576,6 +1671,26 @@ export class AtlasViz {
       this.labelsContainer.addChild(label);
     }
     // always show the label of: CM4AI authors, Bridge2AI authors, CM4AI datasets.
+    const visibleBounds = this.container.getVisibleBounds();
+
+    for (const datum of this.embedding) {
+      const category = String(datum.metadata.color_category);
+      const isCM4AI = category === '3';
+      const isSelected = this.visibleCategories.has(category);
+      const isVisible =
+        visibleBounds.contains(datum.vector.x, datum.vector.y) &&
+        (!datum.metadata.IsAuthor ||
+          (datum.metadata.PaperNum >= this.publicationRange[0] &&
+            datum.metadata.PaperNum <= this.publicationRange[1]));
+
+      if (isCM4AI && isSelected && isVisible) {
+        const label = this.buildLabel(datum, labelScale);
+        if (!this.labelsContainer.children.includes(label)) {
+          this.labelsContainer.addChild(label);
+        }
+      }
+    }
+
   };
 
   public setMaxWidth = (maxWidth: number | undefined) => {

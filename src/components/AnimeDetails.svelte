@@ -210,15 +210,15 @@ ${papersList}
         <p><strong>Number of Papers:</strong> {datum.metadata.PaperNum}</p>
         <button
           class="rec_button"
-          on:click={() =>
-            window.open(`https://cm4aiteaming.streamlit.app/?aid=${datum.metadata.id}`)}
+          on:click={() => window.open(`https://cm4aiteaming.streamlit.app/?aid=${datum.metadata.id}`)}
         >
-        MATRIX Interactive Recommendation.
+          MATRIX Interactive Recommendation.
         </button> <br />
         <span style="font-size: 14px;">
-          MATRIX: <b>M</b>ulti-<b>A</b>gent <b>T</b>eaming <b>R</b>ecommendation through <b>I</b>nteractive <b>E</b>xpertise Gap <b>I</b>dentification.
-        </span>       
-         <br />
+          MATRIX: <b>M</b>ulti-<b>A</b>gent <b>T</b>eaming <b>R</b>ecommendation through <b>I</b>nteractive
+          <b>E</b>xpertise Gap <b>I</b>dentification.
+        </span>
+        <br />
         <button
           class="rec_button"
           on:click={() =>
@@ -249,13 +249,21 @@ ${papersList}
           </a>
         </h2>
         <!-- <p>Source: {datum.metadata.Data_Source}<p> -->
-        <p><strong>Data Source:</strong> {datum.metadata.Data_Source}</p>
+        <p>
+          <strong>{datum.metadata.color_category === 6 ? 'Classification' : 'Dataset Source'}:</strong>
+          {datum.metadata.Data_Source}
+        </p>
         <p><strong>Description:</strong> {datum.metadata.Data_Description}</p>
         <p>
-          <strong>Dataset URL:</strong> <a href={datum.metadata.Data_url} target="_blank">{datum.metadata.Data_url}</a>
+          <strong>{datum.metadata.color_category === 6 ? 'BioEntity URL' : 'Dataset URL'}:</strong>
+          <a href={datum.metadata.Data_url} target="_blank">{datum.metadata.Data_url}</a>
         </p>
 
-        <p>About the dataset (by {datum.metadata.Data_Source}):</p>
+        <p>
+          {datum.metadata.color_category === 6
+            ? 'About the bioEntity:'
+            : `About the dataset (by ${datum.metadata.Data_Source}):`}
+        </p>
         <p>{datum.metadata.Data_Description}.</p>
         <a href={datum.metadata.Data_url} target="_blank">{datum.metadata.Data_url}</a>
         <br /><br />

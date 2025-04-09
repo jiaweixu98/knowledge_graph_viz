@@ -12,8 +12,13 @@
   import VizControls from './VizControls.svelte';
   import Header from './recommendation/Header.svelte';
 
-  let publicationRange: [number, number] = [0, 0];
-  let selectedPublicationRange: [number, number] = [0, 0];
+  let publicationRange: [number, number] = [0, 0]; // publication amount range
+  let selectedPublicationRange: [number, number] = [0, 0]; // initial range
+  let beginYearRange: [number, number] = [1980, 2024]; // 🔶 add BeginYear range
+  let selectedRange: [number, number] = [0, 0]; // 🔶 initial range
+  let rangeType: 'PaperNum' | 'BeginYear' = 'PaperNum'; // 🔶 Dropdown options
+  let filtersInitialized = false; // renderNodes controller
+
   export let embeddingName: EmbeddingName;
   export let embedding: Embedding;
   export let embeddingNeighbors;
@@ -84,15 +89,19 @@
       });
       // 💡 Add：Based on all authors to calculate and initialize paperNum
       const paperNums = embedding.filter((d) => d.metadata.IsAuthor).map((d) => d.metadata.PaperNum);
+      const beginYears = embedding.filter((d) => d.metadata.IsAuthor).map((d) => d.metadata.BeginYear);
 
       const minPub = Math.min(...paperNums);
       const maxPub = Math.max(...paperNums);
+      const minYear = Math.min(...beginYears);
+      const maxYear = Math.max(...beginYears);
 
       publicationRange = [minPub, maxPub];
-      selectedPublicationRange = [minPub, maxPub];
+      beginYearRange = [1970, maxYear];
+      selectedRange = rangeType === 'PaperNum' ? [minPub, maxPub] : [1970, maxYear];
 
       // 💡 Add：pass initialize data to AtlasViz
-      viz?.setPublicationRange(minPub, maxPub);
+      //viz?.setRangeFilter(rangeType, selectedRange[0], selectedRange[1]);
     });
     // console.log('we have get the neighbors done.')
 
@@ -102,9 +111,13 @@
     };
   });
 
-  function updatePublicationRange() {
+  function updateRange() {
     if (viz) {
-      viz.setPublicationRange(minPub, Infinity); // 或 minPub, Infinity if 你只想篩「下限」
+      if (!filtersInitialized) {
+        filtersInitialized = true;
+        viz.filtersInitialized = true;
+      }
+      viz.setRangeFilter(rangeType, selectedRange[0], selectedRange[1]);
     }
   }
 </script>
@@ -134,32 +147,41 @@
 <div id="atlas-viz-legend" />
 
 <!-- new：Publication range filter -->
-<div class="pub-range-filter">
-  <label for="pubRange" style="margin-bottom: 22px; display: inline-block;">Filter by # of Publications:</label>
-  <input
-    id="pubRange"
-    type="range"
-    min={publicationRange[0]}
-    max={publicationRange[1]}
-    step="1"
-    bind:value={minPub}
-    on:input={updatePublicationRange}
-    on:mouseenter={() => (showTooltip = true)}
-    on:mouseleave={() => (showTooltip = false)}
-  />
-  {#if showTooltip}
-    <div
-      class="slider-tooltip"
-      style="left: {((minPub - publicationRange[0]) / (publicationRange[1] - publicationRange[0])) * 100}%"
-    >
-      {minPub}
+{#if viz}
+  <div class="pub-range-filter">
+    <label
+      >Filter by:
+      <select bind:value={rangeType} on:change={updateRange}>
+        <option value="PaperNum">Publication Number</option>
+        <option value="BeginYear">Begin Year</option>
+      </select>
+    </label>
+    <input
+      type="range"
+      min={rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]}
+      max={rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]}
+      bind:value={selectedRange[0]}
+      on:input={updateRange}
+      on:mouseenter={() => (showTooltip = true)}
+      on:mouseleave={() => (showTooltip = false)}
+    />
+    {#if showTooltip}
+      <div
+        class="slider-tooltip"
+        style="left: {((selectedRange[0] - (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0])) /
+          ((rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]) -
+            (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]))) *
+          100}%"
+      >
+        {selectedRange[0]}
+      </div>
+    {/if}
+    <div class="range-caption">
+      Showing authors with ≥ <strong>{selectedRange[0]}</strong>
+      {rangeType === 'PaperNum' ? 'papers' : 'career start year'}
     </div>
-  {/if}
-  <div class="range-caption">
-    Showing authors with ≥ <strong>{minPub}</strong> papers
   </div>
-</div>
-
+{/if}
 <div
   id="toast-container"
   style="
@@ -198,8 +220,8 @@
   .pub-range-filter {
     position: absolute;
     top: 180px; /* position */
-    right: 12px;
-    width: 280px; /* legend width */
+    right: 5px;
+    width: 300px; /* legend width */
     padding: 10px;
     background-color: rgba(0, 0, 0, 0.4);
     border: 1px solid #333;
