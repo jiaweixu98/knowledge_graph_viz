@@ -275,7 +275,9 @@ ${papersList}
           Google
         </button>
         <br />
-        <h3>Potential Future Users ({embeddingNeighbors[datum.index].length})</h3>
+        {#if datum.metadata.color_category !== 6}
+          <h3>Potential Future Users ({embeddingNeighbors[datum.index].length})</h3>
+        {/if}
       {/if}
 
       <!-- List of potential users or collaborators -->
@@ -283,88 +285,92 @@ ${papersList}
       <!-- <p>Click a name below to show details</p> -->
       <!-- <button class="go-back" on:click={goBack}>Back</button> -->
       <button class="go-back" on:click={() => viz?.flyTo(id)}>Back</button>
-      <ul>
-        {#each embeddingNeighbors[datum.index]
-          // Sort by BeginYear in descending order (later years first)
-          .sort((a, b) => embeddedPointByID.get(b)?.metadata?.BeginYear - embeddedPointByID.get(a)?.metadata?.BeginYear) as neighborId, i (neighborId)}
-          {#if embeddedPointByID.get(neighborId)}
-            <li>
-              <a href="javascript:void(0);" on:click={() => navigateTo(embeddedPointByID.get(neighborId).metadata.id)}>
-                <p style="font-size: 15px;">
-                  {i + 1}.
-                  {embeddedPointByID.get(neighborId).metadata.color_category === 5
-                    ? `${embeddedPointByID.get(neighborId).metadata.FullName} (CM4AI collaborator)`
-                    : embeddedPointByID.get(neighborId).metadata.FullName}
-                </p>
-                <span style="font-size: 12px;">
-                  {embeddedPointByID.get(neighborId).metadata.Affiliation}<br />
-                  {embeddedPointByID.get(neighborId).metadata.BeginYear}<br />
-                  {(() => {
-                    const neighbors = collaboratorsdict[datum.metadata.id] || [];
-                    const collaborators = collaboratorsdict[embeddedPointByID.get(neighborId).metadata.id] || [];
-                    const intersection = neighbors.filter((neighbor) => collaborators.includes(neighbor));
+      {#if datum.metadata.color_category !== 6}
+        <ul>
+          {#each embeddingNeighbors[datum.index]
+            // Sort by BeginYear in descending order (later years first)
+            .sort((a, b) => embeddedPointByID.get(b)?.metadata?.BeginYear - embeddedPointByID.get(a)?.metadata?.BeginYear) as neighborId, i (neighborId)}
+            {#if embeddedPointByID.get(neighborId)}
+              <li>
+                <a
+                  href="javascript:void(0);"
+                  on:click={() => navigateTo(embeddedPointByID.get(neighborId).metadata.id)}
+                >
+                  <p style="font-size: 15px;">
+                    {i + 1}.
+                    {embeddedPointByID.get(neighborId).metadata.color_category === 5
+                      ? `${embeddedPointByID.get(neighborId).metadata.FullName} (CM4AI collaborator)`
+                      : embeddedPointByID.get(neighborId).metadata.FullName}
+                  </p>
+                  <span style="font-size: 12px;">
+                    {embeddedPointByID.get(neighborId).metadata.Affiliation}<br />
+                    {embeddedPointByID.get(neighborId).metadata.BeginYear}<br />
+                    {(() => {
+                      const neighbors = collaboratorsdict[datum.metadata.id] || [];
+                      const collaborators = collaboratorsdict[embeddedPointByID.get(neighborId).metadata.id] || [];
+                      const intersection = neighbors.filter((neighbor) => collaborators.includes(neighbor));
 
-                    if (intersection.length === 0) {
-                      return '';
-                    } else if (datum.metadata.IsAuthor == false) {
-                      return '';
-                    } else if (intersection.length === 1) {
-                      return `Shared coauthor: ${embeddedPointByID.get(intersection[0]).metadata.FullName}`;
-                    } else {
-                      return `Shared coauthors: ${intersection.length} (${embeddedPointByID.get(intersection[0]).metadata.FullName}, etc.)`;
-                    }
-                  })()}
-                </span>
-              </a>
-              <br />
+                      if (intersection.length === 0) {
+                        return '';
+                      } else if (datum.metadata.IsAuthor == false) {
+                        return '';
+                      } else if (intersection.length === 1) {
+                        return `Shared coauthor: ${embeddedPointByID.get(intersection[0]).metadata.FullName}`;
+                      } else {
+                        return `Shared coauthors: ${intersection.length} (${embeddedPointByID.get(intersection[0]).metadata.FullName}, etc.)`;
+                      }
+                    })()}
+                  </span>
+                </a>
+                <br />
 
-              {#if datum.metadata.IsAuthor}
+                {#if datum.metadata.IsAuthor}
+                  <button
+                    class="small_button"
+                    on:click={() => handleWhyRecommendClick(datum.metadata.id, neighborId)}
+                    disabled={fetchingExplanations[`${datum.metadata.id}_${neighborId}`]}
+                  >
+                    Why Recommend? (ChatGPT)
+                  </button>
+                {/if}
+
+                {#if datum.metadata.IsAuthor == false}
+                  <button
+                    class="small_button"
+                    on:click={() => handleWhyRecommendClickDataset(datum.metadata.id, neighborId)}
+                    disabled={fetchingExplanations[`${datum.metadata.id}_${neighborId}`]}
+                  >
+                    Why Recommend? (ChatGPT)
+                  </button>
+                {/if}
+                <button
+                  class="rec_button"
+                  onclick="window.open('https://aimed.uab.edu/apex/r/tkg/ckg/author-details?p10_aid=' + encodeURIComponent('{embeddedPointByID.get(
+                    neighborId
+                  ).metadata.id}'));"
+                >
+                  Details
+                </button>
+
                 <button
                   class="small_button"
-                  on:click={() => handleWhyRecommendClick(datum.metadata.id, neighborId)}
-                  disabled={fetchingExplanations[`${datum.metadata.id}_${neighborId}`]}
+                  onclick="window.open('https://www.google.com/search?q=' + encodeURIComponent('{embeddedPointByID.get(
+                    neighborId
+                  ).metadata.FullName} {embeddedPointByID.get(neighborId).metadata.Affiliation}'));"
                 >
-                  Why Recommend? (ChatGPT)
+                  Google
                 </button>
-              {/if}
 
-              {#if datum.metadata.IsAuthor == false}
-                <button
-                  class="small_button"
-                  on:click={() => handleWhyRecommendClickDataset(datum.metadata.id, neighborId)}
-                  disabled={fetchingExplanations[`${datum.metadata.id}_${neighborId}`]}
-                >
-                  Why Recommend? (ChatGPT)
-                </button>
-              {/if}
-              <button
-                class="rec_button"
-                onclick="window.open('https://aimed.uab.edu/apex/r/tkg/ckg/author-details?p10_aid=' + encodeURIComponent('{embeddedPointByID.get(
-                  neighborId
-                ).metadata.id}'));"
-              >
-                Details
-              </button>
-
-              <button
-                class="small_button"
-                onclick="window.open('https://www.google.com/search?q=' + encodeURIComponent('{embeddedPointByID.get(
-                  neighborId
-                ).metadata.FullName} {embeddedPointByID.get(neighborId).metadata.Affiliation}'));"
-              >
-                Google
-              </button>
-
-              {#if fetchingExplanations[`${datum.metadata.id}_${neighborId}`]}
-                <p>Searching in the Knowledge Graph and Reasoning ...</p>
-              {:else if explanations[`${datum.metadata.id}_${neighborId}`]}
-                <p>{explanations[`${datum.metadata.id}_${neighborId}`]}</p>
-              {/if}
-            </li>
-          {/if}
-        {/each}
-      </ul>
-
+                {#if fetchingExplanations[`${datum.metadata.id}_${neighborId}`]}
+                  <p>Searching in the Knowledge Graph and Reasoning ...</p>
+                {:else if explanations[`${datum.metadata.id}_${neighborId}`]}
+                  <p>{explanations[`${datum.metadata.id}_${neighborId}`]}</p>
+                {/if}
+              </li>
+            {/if}
+          {/each}
+        </ul>
+      {/if}
       <!-- Go Back Button -->
     </div>
   </div>
