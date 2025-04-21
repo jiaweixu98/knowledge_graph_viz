@@ -6,6 +6,7 @@ import * as d3 from '../d3';
 import type * as PIXI from '../pixi';
 import { captureMessage } from 'src/sentry';
 import type { CompatAnimeListEntry } from 'src/anilistAPI';
+// import { GlowFilter } from 'pixi-filters';
 import { lines } from '@carbon/charts';
 
 const WORLD_SIZE = 1;
@@ -956,6 +957,8 @@ export class AtlasViz {
     return nodeSprite;
   };
 
+
+
   private renderNodes() {
     // Delete glows
     this.decorationsContainer.removeChildren().forEach(c => c.destroy({ texture: false, children: true }));
@@ -1019,25 +1022,6 @@ export class AtlasViz {
   }
 
 
-  //   private renderNodes() {
-  //     // Remove and destroy all children
-  //     this.pointsContainer.removeChildren().forEach((c) => c.destroy({ texture: false, children: true }));
-
-  //     const texture = this.getNodeTexture();
-  //     const nodeSprites = []; // Array to hold node sprites
-
-  //     // Loop in reverse order through the embedding
-  //     for (let i = this.embedding.length - 1; i >= 0; i--) {
-  //         const point = this.embedding[i];
-  //         const nodeSprite = this.buildNodeSprite(texture, point);
-  //         nodeSprites.push(nodeSprite); // Store node sprites
-  //     }
-
-  //     // Add the stored node sprites back in the original order
-  //     nodeSprites.reverse().forEach((sprite) => {
-  //         this.pointsContainer.addChild(sprite);
-  //     });
-  // }
 
 
   private renderSelectedNodeObjects(selectedAnimeID: number | null) {

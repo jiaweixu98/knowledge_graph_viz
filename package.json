@@ -58,6 +58,7 @@
     "node-cache": "^5.1.2",
     "openai": "^4.70.2",
     "pako": "^2.1.0",
+    "pixi-filters": "^3.2.0",
     "pixi-viewport": "^4.34.4",
     "svelte": "^4.2.12",
     "svelte-preprocess": "^5.1.3",

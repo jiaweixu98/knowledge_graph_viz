@@ -48,6 +48,10 @@
     viz?.setColorBy(colorBy);
   };
 
+  // responsive web design
+  let isMobile = false;
+  let isLegendOpen = true;
+
   // add range filter
   let minPub = 0;
   let showTooltip = false;
@@ -104,8 +108,16 @@
       //viz?.setRangeFilter(rangeType, selectedRange[0], selectedRange[1]);
     });
     // console.log('we have get the neighbors done.')
+    const handleResize = () => {
+      isMobile = window.innerWidth < 768;
+      isLegendOpen = !isMobile;
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       viz?.dispose();
       viz = null;
     };
@@ -144,44 +156,96 @@
     suggestionsStyle="top: 30px;"
   />
 {/if}
-<div id="atlas-viz-legend" />
+
+{#if isMobile && !isLegendOpen}
+  <button class="legend-toggle mobile-toggle" on:click={() => (isLegendOpen = true)}> Show Filters ▼ </button>
+{/if}
+
+<div id="atlas-viz-legend" class:hidden={!isLegendOpen} />
 
 <!-- new：Publication range filter -->
 {#if viz}
-  <div class="pub-range-filter">
-    <label
-      >Filter by:
-      <select bind:value={rangeType} on:change={updateRange}>
-        <option value="PaperNum">Publication Number</option>
-        <option value="BeginYear">Begin Year</option>
-      </select>
-    </label>
-    <input
-      type="range"
-      min={rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]}
-      max={rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]}
-      bind:value={selectedRange[0]}
-      on:input={updateRange}
-      on:mouseenter={() => (showTooltip = true)}
-      on:mouseleave={() => (showTooltip = false)}
-    />
-    {#if showTooltip}
-      <div
-        class="slider-tooltip"
-        style="left: {((selectedRange[0] - (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0])) /
-          ((rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]) -
-            (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]))) *
-          100}%"
-      >
-        {selectedRange[0]}
+  {#if isMobile}
+    {#if isLegendOpen}
+      <div class="legend-wrapper">
+        <button class="legend-toggle" on:click={() => (isLegendOpen = !isLegendOpen)}>
+          {isLegendOpen ? 'Hide Filters ▲' : 'Show Filters ▼'}
+        </button>
+        <div class="pub-range-filter">
+          <label>
+            Filter by:
+            <select bind:value={rangeType} on:change={updateRange}>
+              <option value="PaperNum">Publication Number</option>
+              <option value="BeginYear">Begin Year</option>
+            </select>
+          </label>
+          <input
+            type="range"
+            min={rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]}
+            max={rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]}
+            bind:value={selectedRange[0]}
+            on:input={updateRange}
+            on:mouseenter={() => (showTooltip = true)}
+            on:mouseleave={() => (showTooltip = false)}
+          />
+          {#if showTooltip}
+            <div
+              class="slider-tooltip"
+              style="left: {((selectedRange[0] - (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0])) /
+                ((rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]) -
+                  (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]))) *
+                100}%"
+            >
+              {selectedRange[0]}
+            </div>
+          {/if}
+          <div class="range-caption">
+            Showing authors with ≥ <strong>{selectedRange[0]}</strong>
+            {rangeType === 'PaperNum' ? 'papers' : 'career start year'}
+          </div>
+        </div>
       </div>
     {/if}
-    <div class="range-caption">
-      Showing authors with ≥ <strong>{selectedRange[0]}</strong>
-      {rangeType === 'PaperNum' ? 'papers' : 'career start year'}
+  {:else}
+    <div class="legend-wrapper">
+      <!-- 桌面直接顯示 Filter -->
+      <div class="pub-range-filter">
+        <label>
+          Filter by:
+          <select bind:value={rangeType} on:change={updateRange}>
+            <option value="PaperNum">Publication Number</option>
+            <option value="BeginYear">Begin Year</option>
+          </select>
+        </label>
+        <input
+          type="range"
+          min={rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]}
+          max={rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]}
+          bind:value={selectedRange[0]}
+          on:input={updateRange}
+          on:mouseenter={() => (showTooltip = true)}
+          on:mouseleave={() => (showTooltip = false)}
+        />
+        {#if showTooltip}
+          <div
+            class="slider-tooltip"
+            style="left: {((selectedRange[0] - (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0])) /
+              ((rangeType === 'PaperNum' ? publicationRange[1] : beginYearRange[1]) -
+                (rangeType === 'PaperNum' ? publicationRange[0] : beginYearRange[0]))) *
+              100}%"
+          >
+            {selectedRange[0]}
+          </div>
+        {/if}
+        <div class="range-caption">
+          Showing authors with ≥ <strong>{selectedRange[0]}</strong>
+          {rangeType === 'PaperNum' ? 'papers' : 'career start year'}
+        </div>
+      </div>
     </div>
-  </div>
+  {/if}
 {/if}
+
 <div
   id="toast-container"
   style="
@@ -258,10 +322,70 @@
 
   #atlas-viz-legend {
     position: absolute;
-    top: 0;
+    /* top: 0;
     right: 16px;
     z-index: 1;
-    background-color: #11111188;
+    background-color: #11111188; */
+    top: 100px;
+    right: 5px;
+    z-index: 9;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .legend-wrapper {
+    position: absolute;
+    top: 100px;
+    right: 5px;
+    z-index: 10;
+    width: 90%;
+    max-width: 300px;
+  }
+
+  .legend-toggle {
+    display: block;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+    padding: 6px 8px;
+    margin-bottom: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .legend-toggle.mobile-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: auto;
+    margin-bottom: 0;
+    text-align: right;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .hidden {
+    display: none;
+  }
+  #atlas-viz-legend,
+  .legend-wrapper {
+    position: absolute;
+    top: 0px;
+    right: 5px;
+    z-index: 10;
+  }
+
+  /* 手機版：往下移 */
+  @media (max-width: 768px) {
+    #atlas-viz-legend {
+      top: 40px;
+    }
+    .legend-wrapper {
+      top: 0px;
+    }
   }
 
   @media (max-width: 800px) {
