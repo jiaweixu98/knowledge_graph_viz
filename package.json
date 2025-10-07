@@ -5,7 +5,8 @@
   "main": "svelte.config.js",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "prebuild": "node ./scripts/copy-data-to-static.mjs",
+    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=6144\" vite build",
     "package": "svelte-kit package",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
@@ -16,6 +17,9 @@
   "type": "module",
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@carbon/charts": "=1.14.6",
     "@carbon/charts-svelte": "=1.14.6",
@@ -67,7 +71,8 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-vercel": "^5.4.3",
+    "cross-env": "^7.0.3",
     "gh-pages": "^6.1.1",
-    "vercel": "^37.1.1"
+    "vercel": "^37.14.0"
   }
 }

@@ -1,2 +1,44 @@
-work/data/author_collab_dataset_bioentity.json
+# Dependencies
+node_modules
+
+# Git
 .git
+
+# Build artifacts
+.svelte-kit
+build
+.output
+dist
+
+# Cache directories
+.cache
+.vite
+.turbo
+
+# Development files
+notebooks
+
+# IDE and system files
+.vscode
+.idea
+*.log
+.DS_Store
+*.swp
+*.swo
+
+# Test and coverage
+coverage
+.nyc_output
+
+# Environment variables (if you have them)
+.env
+.env.*
+!.env.example
+
+# Package manager files (Vercel will use package.json)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Include data in deploy (we will copy to static/data at build)
+!work/data/**

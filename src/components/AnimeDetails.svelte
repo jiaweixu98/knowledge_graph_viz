@@ -200,9 +200,7 @@ ${papersList}
             target="_blank"
             onClick={() => navigateTo(datum.metadata.id)}
           >
-            {datum.metadata.color_category === 5
-              ? `${datum.metadata.FullName} (CM4AI collaborator)`
-              : datum.metadata.FullName}
+            {datum.metadata.FullName}
           </a>
         </h2>
         <p><strong>Institution:</strong> {datum.metadata.Affiliation}</p>
@@ -242,27 +240,23 @@ ${papersList}
       {#if !datum.metadata.IsAuthor}
         <h2>
           <a href={datum.metadata.Data_url} target="_blank">
-            {datum.metadata.color_category === 5
-              ? `${datum.metadata.FullName} (CM4AI collaborator)`
-              : datum.metadata.FullName}
+            {datum.metadata.FullName}
             <br />
           </a>
         </h2>
         <!-- <p>Source: {datum.metadata.Data_Source}<p> -->
         <p>
-          <strong>{datum.metadata.color_category === 6 ? 'Classification' : 'Dataset Source'}:</strong>
+          <strong>Dataset Source:</strong>
           {datum.metadata.Data_Source}
         </p>
         <p><strong>Description:</strong> {datum.metadata.Data_Description}</p>
         <p>
-          <strong>{datum.metadata.color_category === 6 ? 'BioEntity URL' : 'Dataset URL'}:</strong>
+          <strong>Dataset URL:</strong>
           <a href={datum.metadata.Data_url} target="_blank">{datum.metadata.Data_url}</a>
         </p>
 
         <p>
-          {datum.metadata.color_category === 6
-            ? 'About the bioEntity:'
-            : `About the dataset (by ${datum.metadata.Data_Source}):`}
+          About the dataset (by {datum.metadata.Data_Source}):
         </p>
         <p>{datum.metadata.Data_Description}.</p>
         <a href={datum.metadata.Data_url} target="_blank">{datum.metadata.Data_url}</a>
@@ -275,9 +269,7 @@ ${papersList}
           Google
         </button>
         <br />
-        {#if datum.metadata.color_category !== 6}
-          <h3>Potential Future Users ({embeddingNeighbors[datum.index].length})</h3>
-        {/if}
+        <h3>Potential Future Users ({embeddingNeighbors[datum.index].length})</h3>
       {/if}
 
       <!-- List of potential users or collaborators -->
@@ -285,8 +277,7 @@ ${papersList}
       <!-- <p>Click a name below to show details</p> -->
       <!-- <button class="go-back" on:click={goBack}>Back</button> -->
       <button class="go-back" on:click={() => viz?.flyTo(id)}>Back</button>
-      {#if datum.metadata.color_category !== 6}
-        <ul>
+      <ul>
           {#each embeddingNeighbors[datum.index]
             // Sort by BeginYear in descending order (later years first)
             .sort((a, b) => embeddedPointByID.get(b)?.metadata?.BeginYear - embeddedPointByID.get(a)?.metadata?.BeginYear) as neighborId, i (neighborId)}
@@ -298,9 +289,7 @@ ${papersList}
                 >
                   <p style="font-size: 15px;">
                     {i + 1}.
-                    {embeddedPointByID.get(neighborId).metadata.color_category === 5
-                      ? `${embeddedPointByID.get(neighborId).metadata.FullName} (CM4AI collaborator)`
-                      : embeddedPointByID.get(neighborId).metadata.FullName}
+                    {embeddedPointByID.get(neighborId).metadata.FullName}
                   </p>
                   <span style="font-size: 12px;">
                     {embeddedPointByID.get(neighborId).metadata.Affiliation}<br />
@@ -370,7 +359,6 @@ ${papersList}
             {/if}
           {/each}
         </ul>
-      {/if}
       <!-- Go Back Button -->
     </div>
   </div>

@@ -56,27 +56,43 @@
   let minPub = 0;
   let showTooltip = false;
 
-  const loadMALProfile = (id: number) => {
+  const loadMALProfile = async (id: number) => {
     if (!viz) {
       console.error('Tried to load MAL profile before Atlas viz was loaded.');
       return;
     }
-    // console.log('id:', id);
-    // # important, we directly get collaborators for id Header, may reuse this.
-    const collaboratorIds = collaboratorsdict[id] || [];
-    // console.log('collaboratorIds:', id, collaboratorIds);
-    const collaboratorObjects = collaboratorIds.map((id) => ({ node: { id } }));
-    // given the id, return a list of id like below; they are the true collborators or users before.
-    // const testArray = [{ node: { id: 100000093 } }, { node: { id: 12120856 } }, { node: { id: 12118846 } }];
-    // console.log(Array.isArray(testArray), testArray);
-    viz?.displayMALUser(collaboratorObjects);
-    // viz?.displayMALUser([{node:{id:100000093}}])
-    // console.error('Loading MAL profile for', `/${profileSource}-profile?username=${username}`);
-    // fetch(`/${profileSource}-profile?username=${username}`)
-    //   .then((res) => res.json())
-    //   .then((profile) => {
-    //     viz?.displayMALUser(profile);
-    //   });
+    
+    // Check if we already have collaborators for this author
+    if (collaboratorsdict[id]) {
+      const collaboratorIds = collaboratorsdict[id];
+      const collaboratorObjects = collaboratorIds.map((id) => ({ node: { id } }));
+      viz?.displayMALUser(collaboratorObjects);
+      return;
+    }
+    
+    // Load collaborators on-demand from API
+    console.time(`[timing] Load collaborators for author ${id}`);
+    try {
+      const response = await fetch(`/api/collaborators/${id}`);
+      if (!response.ok) {
+        console.error(`Failed to load collaborators for ${id}`);
+        return;
+      }
+      
+      const data = await response.json();
+      const collaboratorIds = data.collaborators || [];
+      
+      // Cache for future use
+      collaboratorsdict[id] = collaboratorIds;
+      
+      console.log(`[timing] Loaded ${collaboratorIds.length} collaborators for author ${id}`);
+      console.timeEnd(`[timing] Load collaborators for author ${id}`);
+      
+      const collaboratorObjects = collaboratorIds.map((id: number) => ({ node: { id } }));
+      viz?.displayMALUser(collaboratorObjects);
+    } catch (e) {
+      console.error(`Error loading collaborators for ${id}:`, e);
+    }
   };
 
   onMount(() => {

@@ -15,6 +15,8 @@ const config = {
     inlineStyleThreshold: 2048,
     adapter: adapter({
       runtime: 'nodejs20.x',
+      maxDuration: 300, // Allow up to 5 minutes for large data responses (Pro plan)
+      memory: 3008, // Use maximum memory available on Pro plan
     }),
     prerender: {
       concurrency: 6,

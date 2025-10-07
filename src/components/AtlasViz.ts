@@ -33,11 +33,7 @@ export enum ColorBy {
 const CUSTOM_GROUP_LABELS: { [key: string]: string } = {
   '0': 'Author Nodes',
   '1': 'Dataset Nodes',
-  '2': 'Bridge2AI Talents',
-  '3': 'CM4AI Talents',
-  '4': 'CM4AI Datasets',
-  '5': 'Author Nodes (CM4AI Collaborators)',
-  '6': 'Bioentity Nodes'
+  '2': 'Bridge2AI Talents'
 };
 
 export interface EmbeddedPointWithIndex extends EmbeddedPoint {
@@ -498,8 +494,8 @@ export class AtlasViz {
       }
       case ColorBy.CustomMapping:
         return d3.scaleOrdinal<string>()
-          .domain(['0', '1', '2', '3', '4', '5', '6']) // Keys as strings
-          .range(['#7F7F7F', '#4CAF50', '#FFD700', '#FF4500', '#088F8F', '#FFB6C1', '#87CEFA']); // author, dataset, bridge2ai, cm4ai in hex
+          .domain(['0', '1', '2']) // Keys as strings: Author, Dataset, Bridge2AI
+          .range(['#7F7F7F', '#4CAF50', '#FFD700']); // gray (author), green (dataset), gold (bridge2ai)
       default:
         throw new Error(`Unknown colorBy option: ${scaleBy}`);
     }
@@ -996,22 +992,11 @@ export class AtlasViz {
       const nodeSprite = this.buildNodeSprite(texture, point);
       this.pointsContainer.addChild(nodeSprite);
 
-      if (point.metadata.color_category === 3) {
-        const backgroundSprite = this.buildNodeBackgroundSprite(nodeBackgroundTexture, point, 0xFF4500);
-        backgroundSprite.scale.x *= point.metadata.PaperNum / 70;
-        backgroundSprite.scale.y *= point.metadata.PaperNum / 70;
-        this.decorationsContainer.addChild(backgroundSprite);
-      }
+      // Add special background glow for Bridge2AI Talents (category 2)
       if (point.metadata.color_category === 2) {
         const backgroundSprite = this.buildNodeBackgroundSprite(nodeBackgroundTexture, point, 0xFFD700);
         backgroundSprite.scale.x *= 1.5;
         backgroundSprite.scale.y *= 1.5;
-        this.decorationsContainer.addChild(backgroundSprite);
-      }
-      if (point.metadata.color_category === 4) {
-        const backgroundSprite = this.buildNodeBackgroundSprite(nodeBackgroundTexture, point, 0x088F8F);
-        backgroundSprite.scale.x *= 5;
-        backgroundSprite.scale.y *= 5;
         this.decorationsContainer.addChild(backgroundSprite);
       }
     });
@@ -1515,54 +1500,7 @@ export class AtlasViz {
       }
     }
 
-    // 強制插入可見 + 勾選的 CM4AI labels
-    for (const datum of this.embedding) {
-      const category = String(datum.metadata.color_category);
-      const isCM4AI = category === '3';
-      const isSelected = this.visibleCategories.has(category);
-      const visibleBounds = this.container.getVisibleBounds();
-      const isVisible = visibleBounds.contains(datum.vector.x, datum.vector.y);
-
-      if (isCM4AI && isSelected && isVisible) {
-        const bounds = computeLabelTransformedBounds(
-          ESTIMATED_LABEL_MAX_WIDTH,
-          datum.vector.x,
-          datum.vector.y
-        );
-
-        const overlappedIndices = new Set<number>();
-
-        fastQuadtreeVisit(labelsToRenderQuadtree, (node, x1, y1, x2, y2) => {
-          if (Array.isArray(node)) return false;
-
-          do {
-            const [_, __, i] = node.data;
-            const otherLabel = labelsToRender[i];
-            const otherDatum = otherLabel.datum;
-            const isOtherCM4AI = String(otherDatum.metadata.color_category) === '3';
-
-            if (fastRectIntersects(bounds, otherLabel.transformedBounds)) {
-              if (!isOtherCM4AI) {
-                overlappedIndices.add(i);
-              } else {
-                return true;
-              }
-            }
-          } while ((node = node.next));
-        });
-
-        // 移除和這個 CM4AI label 發生衝突的其他 label
-        const newLabels = labelsToRender.filter((_, i) => !overlappedIndices.has(i));
-        labelsToRender.length = 0;
-        labelsToRender.push(...newLabels);
-
-        // 加上 CM4AI label
-        labelsToRender.push({ datum, transformedBounds: bounds });
-        labelsToRenderQuadtree.addAll(
-          getRectangleVertices(bounds).map(([x, y]) => [x, y, labelsToRender.length - 1] as const)
-        );
-      }
-    }
+    // No special label handling needed for current categories
 
 
     this.cachedGlobalLabelsByGridSize.set(gridSquareSize, labelsToRender);
@@ -1571,7 +1509,6 @@ export class AtlasViz {
 
   private buildLabel = (datum: EmbeddedPointWithIndex, labelScale: number) => {
     const text = datum.metadata.FullName ?? datum.metadata.FullName;
-    const isCM4AI = String(datum.metadata.color_category) === '3';
     const cachedTextSprite = this.cachedLabels.get(text);
     if (cachedTextSprite) {
       this.setLabelScale(cachedTextSprite, datum, 1, labelScale);
@@ -1584,7 +1521,7 @@ export class AtlasViz {
       text,
       {
         fontFamily: 'IBM Plex Sans',
-        fontSize: isCM4AI ? BASE_LABEL_FONT_SIZE * 1.5 : BASE_LABEL_FONT_SIZE,
+        fontSize: BASE_LABEL_FONT_SIZE,
         fill: 0xffffff,
         align: 'center',
       },
@@ -1633,7 +1570,6 @@ export class AtlasViz {
         //console.log('label candidate', datum.metadata.FullName, datum.metadata.color_category);
 
         const category = String(datum.metadata.color_category);
-        const isCM4AI = category === '3';
 
         const isVisible = visibleNodeIndices.has(datum.index);
         const isCategorySelected = this.visibleCategories.has(category);
@@ -1641,38 +1577,14 @@ export class AtlasViz {
           !datum.metadata.IsAuthor ||
           (datum.metadata.PaperNum >= this.publicationRange[0] && datum.metadata.PaperNum <= this.publicationRange[1]);
 
-        // ✅ Display condition：
-        // - CM4AI && selected => always display
-        // - Other categories => display when needed
-        return isVisible && isAuthorValid && (
-          (isCM4AI && isCategorySelected) || (!isCM4AI && isCategorySelected)
-        );
+        // Display condition: visible, category selected, and valid author filters
+        return isVisible && isAuthorValid && isCategorySelected;
       }
       ) // filter legend & range
       .map(({ datum }) => this.buildLabel(datum, labelScale));
 
     for (const label of labelsToRender) {
       this.labelsContainer.addChild(label);
-    }
-    // always show the label of: CM4AI authors, Bridge2AI authors, CM4AI datasets.
-    const visibleBounds = this.container.getVisibleBounds();
-
-    for (const datum of this.embedding) {
-      const category = String(datum.metadata.color_category);
-      const isCM4AI = category === '3';
-      const isSelected = this.visibleCategories.has(category);
-      const isVisible =
-        visibleBounds.contains(datum.vector.x, datum.vector.y) &&
-        (!datum.metadata.IsAuthor ||
-          (datum.metadata.PaperNum >= this.publicationRange[0] &&
-            datum.metadata.PaperNum <= this.publicationRange[1]));
-
-      if (isCM4AI && isSelected && isVisible) {
-        const label = this.buildLabel(datum, labelScale);
-        if (!this.labelsContainer.children.includes(label)) {
-          this.labelsContainer.addChild(label);
-        }
-      }
     }
 
   };

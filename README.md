@@ -6,6 +6,12 @@ See the `notebooks` directory for experiments, research, and notebooks used for 
 
 The web portion of the atlas is built with [PixiJS](https://pixijs.com/), a WebGL-powered 2D graphics framework for interactive web apps.
 
+## Deploying to Vercel
+
+- Data files in `work/data` are copied to `static/data` during build via the `prebuild` script.
+- Runtime will read from filesystem first; if unavailable (serverless), it fetches from `/data/...`.
+- You can override the HTTP base with env var `PUBLIC_DATA_BASE_URL` (e.g. to a CDN).
+
 ## Acknowledgment 
 Our code is modified from https://github.com/Ameobea/sprout. Huge shout outs to the original authors!
 

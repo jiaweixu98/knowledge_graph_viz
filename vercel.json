@@ -1,5 +1,10 @@
 {
-    "buildCommand": "npm run build",
-    "outputDirectory": ".svelte-kit/output",
-    "framework": "sveltekit"
+  "buildCommand": "npm run build",
+  "framework": "sveltekit",
+  "regions": ["iad1"],
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=8192"
+    }
+  }
 }

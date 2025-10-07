@@ -6,3 +6,7 @@ build
 raw_data
 work/data/
 .DS_Store
+
+# Large data files
+static/data/*.json
+static/data/*.csv

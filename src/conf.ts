@@ -21,7 +21,7 @@ const loadEnv = (key: string, defaultValue?: string) => {
 };
 
 export const IS_DOCKER = loadEnv('IS_DOCKER', 'false') === 'true';
-export const DATA_DIR = loadEnv('DATA_DIR');
+export const DATA_DIR = loadEnv('DATA_DIR', 'work/data');
 
 export const MAL_CLIENT_ID = loadEnv('MAL_CLIENT_ID');
 export const MAL_CLIENT_SECRET = loadEnv('MAL_CLIENT_SECRET');
@@ -34,3 +34,21 @@ export const MYSQL_HOST = loadEnv('MYSQL_HOST');
 export const MYSQL_USER = loadEnv('MYSQL_USER');
 export const MYSQL_PASSWORD = loadEnv('MYSQL_PASSWORD');
 export const MYSQL_DATABASE = loadEnv('MYSQL_DATABASE');
+
+// Base URL to load data files over HTTP when filesystem paths are unavailable (e.g., on Vercel functions)
+// If not provided, defaults to serving from the static assets path `/data`.
+export const DATA_HTTP_BASE = process.env.PUBLIC_DATA_BASE_URL || '/data';
+
+// Resolve site origin for server-side fetch absolute URLs (needed on Vercel)
+const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined;
+export const SITE_ORIGIN = process.env.PUBLIC_SITE_URL || vercelOrigin || 'http://127.0.0.1:5173';
+
+export const buildDataUrl = (relativePath: string): string => {
+  const trimmedBase = DATA_HTTP_BASE.replace(/\/$/, '');
+  if (/^https?:\/\//i.test(trimmedBase)) {
+    return `${trimmedBase}/${relativePath}`;
+  }
+  const trimmedRel = relativePath.replace(/^\//, '');
+  const basePath = trimmedBase.startsWith('/') ? trimmedBase : `/${trimmedBase}`;
+  return `${SITE_ORIGIN}${basePath}/${trimmedRel}`;
+};
