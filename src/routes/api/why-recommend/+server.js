@@ -7,11 +7,11 @@ export async function POST({ request }) {
 
     // Initialize the OpenAI client with your API key
     const openai = new OpenAI({
-      apiKey: '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',
+      apiKey: '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',
     });
 
     const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-mini',
         messages: [
           {
             role: 'system',

@@ -682,7 +682,7 @@ export class AtlasViz {
     });
     this.container.drag({ mouseButtons: 'middle-left' }).pinch().wheel();
     // TODO: The initial transform probably needs to be relative to screen size
-    this.container.setTransform(1000.5, 400.5, 15, 15);
+    this.container.setTransform(1000.5, 400.5, 20, 20);
     this.container.moveCenter(-130, 210);
     window.addEventListener('resize', this.handleResize);
 
